@@ -18,6 +18,7 @@ public static class DependencyInjection
         services.AddDbContext<SupportPilotDbContext>(options =>
             options.UseSqlite(configuration.GetConnectionString("DefaultConnection")));
 
+        services.AddScoped<ISupportPilotDbContext>(provider => provider.GetRequiredService<SupportPilotDbContext>());
         services.AddScoped<JwtTokenService>();
         services.AddScoped<IFileStorage, LocalFileStorage>();
         services.AddHostedService<SlaMonitorService>();

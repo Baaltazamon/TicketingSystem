@@ -1,6 +1,6 @@
-using SupportPilot.Domain.Domain;
+using SupportPilot.Domain;
 
-namespace SupportPilot.Contracts.Contracts;
+namespace SupportPilot.Contracts;
 
 public sealed record TicketListItemResponse(
     Guid Id,
@@ -45,3 +45,5 @@ public sealed record UserProfileShort(Guid Id, string DisplayName, string Email)
 public sealed record CommentResponse(Guid Id, string Body, bool IsInternal, UserProfileShort Author, DateTimeOffset CreatedAt);
 public sealed record AttachmentResponse(Guid Id, string FileName, string ContentType, long SizeBytes, string DownloadUrl, UserProfileShort UploadedBy, DateTimeOffset CreatedAt);
 public sealed record TimelineItemResponse(string Type, string Text, DateTimeOffset CreatedAt);
+public sealed record TicketCreatedResponse(Guid Id, string Number);
+public sealed record TicketAttachmentCreatedResponse(Guid Id);

@@ -1,4 +1,4 @@
-namespace SupportPilot.Domain.Domain;
+namespace SupportPilot.Domain;
 
 public enum TicketStatus
 {

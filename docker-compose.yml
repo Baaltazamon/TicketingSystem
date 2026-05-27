@@ -1,0 +1,48 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: src/SupportPilot.Api/Dockerfile
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__DefaultConnection: Data Source=/app/data/supportpilot.db
+      FileStorage__RootPath: /app/storage/attachments
+      Jwt__SigningKey: DOCKER_SUPPORTPILOT_SECRET_32_CHARS_MINIMUM
+    ports:
+      - "8080:8080"
+    volumes:
+      - supportpilot-data:/app/data
+      - supportpilot-files:/app/storage
+    depends_on:
+      - redis
+      - rabbitmq
+      - minio
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+
+  minio:
+    image: minio/minio:RELEASE.2024-03-30T09-41-56Z
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: supportpilot
+      MINIO_ROOT_PASSWORD: supportpilot123
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio-data:/data
+
+volumes:
+  supportpilot-data:
+  supportpilot-files:
+  minio-data:

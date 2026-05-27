@@ -1,0 +1,27 @@
+@SupportPilot.Api_HostAddress = http://localhost:5295
+@token = paste_token_here
+
+GET {{SupportPilot.Api_HostAddress}}/
+Accept: application/json
+
+###
+
+POST {{SupportPilot.Api_HostAddress}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@supportpilot.local",
+  "password": "Admin123!"
+}
+
+###
+
+GET {{SupportPilot.Api_HostAddress}}/api/admin/categories
+Authorization: Bearer {{token}}
+Accept: application/json
+
+###
+
+GET {{SupportPilot.Api_HostAddress}}/api/tickets
+Authorization: Bearer {{token}}
+Accept: application/json

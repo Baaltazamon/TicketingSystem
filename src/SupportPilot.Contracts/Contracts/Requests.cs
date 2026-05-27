@@ -1,6 +1,6 @@
-using SupportPilot.Domain.Domain;
+using SupportPilot.Domain;
 
-namespace SupportPilot.Contracts.Contracts;
+namespace SupportPilot.Contracts;
 
 public sealed record RegisterRequest(string Email, string DisplayName, string Password);
 public sealed record LoginRequest(string Email, string Password);

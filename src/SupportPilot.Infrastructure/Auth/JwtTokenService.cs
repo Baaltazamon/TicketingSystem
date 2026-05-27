@@ -4,7 +4,6 @@ using System.Text;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using SupportPilot.Domain;
-using SupportPilot.Domain.Domain;
 
 namespace SupportPilot.Infrastructure.Auth;
 

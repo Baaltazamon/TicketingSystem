@@ -3,7 +3,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using SupportPilot.Domain;
-using SupportPilot.Domain.Domain;
 using SupportPilot.Infrastructure.Auth;
 
 namespace SupportPilot.Infrastructure.Data;

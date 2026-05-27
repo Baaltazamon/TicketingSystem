@@ -4,7 +4,6 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using SupportPilot.Application.Abstractions;
 using SupportPilot.Domain;
-using SupportPilot.Domain.Domain;
 using SupportPilot.Infrastructure.Data;
 
 namespace SupportPilot.Infrastructure.Services;

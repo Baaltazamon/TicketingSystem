@@ -2,6 +2,7 @@ using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using SupportPilot.Application;
 using SupportPilot.Application.Abstractions;
 using SupportPilot.Api.Auth;
 using SupportPilot.Api.Endpoints;
@@ -13,6 +14,7 @@ using SupportPilot.Infrastructure.Data;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services.AddApplication();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<CurrentUser>();
 builder.Services.AddSignalR();

@@ -1,10 +1,10 @@
 using Microsoft.EntityFrameworkCore;
+using SupportPilot.Application.Abstractions;
 using SupportPilot.Domain;
-using SupportPilot.Domain.Domain;
 
 namespace SupportPilot.Infrastructure.Data;
 
-public sealed class SupportPilotDbContext(DbContextOptions<SupportPilotDbContext> options) : DbContext(options)
+public sealed class SupportPilotDbContext(DbContextOptions<SupportPilotDbContext> options) : DbContext(options), ISupportPilotDbContext
 {
     public DbSet<User> Users => Set<User>();
     public DbSet<Role> Roles => Set<Role>();

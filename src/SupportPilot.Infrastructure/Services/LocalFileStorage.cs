@@ -20,11 +20,42 @@ public sealed class LocalFileStorage(IOptions<FileStorageOptions> options, IHost
         return new StoredFile(storageKey.Replace('\\', '/'), stream.Length);
     }
 
-    public string GetFullPath(string storageKey)
+    public Task<StoredFileDownload?> OpenReadAsync(string storageKey, CancellationToken cancellationToken)
     {
-        var root = Path.IsPathRooted(_options.RootPath)
+        var fullPath = GetFullPath(storageKey);
+        if (!File.Exists(fullPath))
+        {
+            return Task.FromResult<StoredFileDownload?>(null);
+        }
+
+        var stream = File.OpenRead(fullPath);
+        return Task.FromResult<StoredFileDownload?>(new StoredFileDownload(stream, null, stream.Length));
+    }
+
+    public Task DeleteAsync(string storageKey, CancellationToken cancellationToken)
+    {
+        var fullPath = GetFullPath(storageKey);
+        if (File.Exists(fullPath))
+        {
+            File.Delete(fullPath);
+        }
+
+        return Task.CompletedTask;
+    }
+
+    public Task<bool> IsAvailableAsync(CancellationToken cancellationToken)
+    {
+        var root = GetRootPath();
+        Directory.CreateDirectory(root);
+        return Task.FromResult(Directory.Exists(root));
+    }
+
+    private string GetFullPath(string storageKey) => Path.GetFullPath(Path.Combine(GetRootPath(), storageKey));
+
+    private string GetRootPath()
+    {
+        return Path.IsPathRooted(_options.RootPath)
             ? _options.RootPath
             : Path.Combine(environment.ContentRootPath, _options.RootPath);
-        return Path.GetFullPath(Path.Combine(root, storageKey));
     }
 }

@@ -13,7 +13,7 @@ public static class DatabaseInitializer
     {
         using var scope = services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<SupportPilotDbContext>();
-        await db.Database.EnsureCreatedAsync();
+        await db.Database.MigrateAsync();
 
         await SeedRolesAsync(db);
         await SeedSlaPoliciesAsync(db);

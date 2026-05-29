@@ -10,13 +10,17 @@ SupportPilot - MVP системы обращений в поддержку на 
 - SLA-политики для `Critical`, `High`, `Normal`, `Low`.
 - Фоновый SLA-monitor, который помечает нарушения и создает уведомления.
 - Публичные комментарии и внутренние заметки.
-- Вложения через локальное файловое хранилище вне БД.
+- Вложения через `IFileStorage`: локальное хранилище или MinIO.
 - Timeline обращения: создание, смена статуса, комментарии, файлы.
 - База знаний / FAQ с поиском по статьям.
 - Отчеты, аудит и SignalR hub `/hubs/tickets`.
-- Docker Compose для API, Redis, RabbitMQ и MinIO.
+- Health checks: `/api/health`, `/api/health/ready`, `/api/health/live`.
+- EF Core migrations вместо `EnsureCreated`.
+- SQLite для локального режима, PostgreSQL для Docker/production-like режима.
 
 ## Быстрый запуск
+
+Локальный режим использует SQLite и локальное файловое хранилище:
 
 ```powershell
 dotnet run --project src/SupportPilot.Api
@@ -35,30 +39,117 @@ email: admin@supportpilot.local
 password: Admin123!
 ```
 
+## Infrastructure Profile
+
+Конфигурация выбирает провайдер БД:
+
+```json
+{
+  "Database": {
+    "Provider": "Sqlite"
+  }
+}
+```
+
+или:
+
+```json
+{
+  "Database": {
+    "Provider": "PostgreSql"
+  }
+}
+```
+
+Конфигурация выбирает провайдер файлов:
+
+```json
+{
+  "FileStorage": {
+    "Provider": "Local"
+  }
+}
+```
+
+или:
+
+```json
+{
+  "FileStorage": {
+    "Provider": "Minio"
+  }
+}
+```
+
+Режимы:
+
+- SQLite + Local storage: локальная разработка через `dotnet run`.
+- PostgreSQL + MinIO: Docker/production-like профиль через `docker compose`.
+
 ## Docker Compose
+
+Скопируйте `.env.example` в `.env` при необходимости и запустите:
 
 ```powershell
 docker compose up --build
 ```
 
+Compose переключает API на PostgreSQL и MinIO:
+
+```text
+Database__Provider=PostgreSql
+FileStorage__Provider=Minio
+```
+
 Сервисы:
 
 - API: `http://localhost:8080`
+- PostgreSQL: `localhost:5432`
 - MinIO console: `http://localhost:9001`
 - RabbitMQ management: `http://localhost:15672`
 - Redis: `localhost:6379`
 
-Redis, RabbitMQ и MinIO пока подключены как инфраструктурная база для следующих итераций. В текущем MVP API использует SQLite и локальное файловое хранилище.
+Health checks:
+
+- `GET /api/health` - все проверки.
+- `GET /api/health/ready` - БД, Redis, RabbitMQ, object storage.
+- `GET /api/health/live` - liveness без внешних зависимостей.
+
+## EF Core
+
+Применить миграции вручную:
+
+```powershell
+dotnet ef database update --project src/SupportPilot.Infrastructure --startup-project src/SupportPilot.Api
+```
+
+Создать новую миграцию:
+
+```powershell
+dotnet ef migrations add MigrationName --project src/SupportPilot.Infrastructure --startup-project src/SupportPilot.Api --output-dir Data/Migrations
+```
+
+На старте API вызывает `Database.MigrateAsync()` и затем выполняет seed базовых ролей, SLA, категорий, FAQ и admin-пользователя.
+
+## Проверки
+
+```powershell
+dotnet build SupportPilot.sln
+dotnet test SupportPilot.sln
+dotnet publish src/SupportPilot.Api/SupportPilot.Api.csproj -c Release -o artifacts/api
+```
 
 ## Архитектура
 
 ```text
 src/
   SupportPilot.Api             HTTP endpoints, Swagger, auth policies, SignalR adapter
-  SupportPilot.Application     application ports and use-case boundaries
+  SupportPilot.Application     use cases and application ports
   SupportPilot.Contracts       request/response DTO
   SupportPilot.Domain          entities, enums and core business concepts
-  SupportPilot.Infrastructure  EF Core, SQLite, JWT, file storage, SLA background worker
+  SupportPilot.Infrastructure  EF Core, PostgreSQL/SQLite, JWT, file storage, SLA worker
+tests/
+  SupportPilot.IntegrationTests
 ```
 
 Зависимости направлены внутрь:
@@ -66,11 +157,11 @@ src/
 ```text
 Api -> Application / Contracts / Infrastructure
 Infrastructure -> Application / Domain
-Application -> Domain
+Application -> Domain / Contracts
 Contracts -> Domain
 ```
 
-Внешние механизмы подключаются через порты из `Application`. Например, SLA worker из `Infrastructure` уведомляет клиентов через `ITicketRealtimeNotifier`, а конкретная SignalR-реализация находится в `Api`.
+Внешние механизмы подключаются через порты из `Application`. Например, `TicketUseCases` работает с `IFileStorage`, а конкретные реализации `LocalFileStorage` и `MinioFileStorage` находятся в `Infrastructure`.
 
 ## Основные endpoint-группы
 
@@ -84,14 +175,15 @@ Contracts -> Domain
 - `PATCH /api/tickets/{id}/assignee`
 - `POST /api/tickets/{id}/comments`
 - `POST /api/tickets/{id}/attachments`
+- `GET /api/tickets/{ticketId}/attachments/{attachmentId}`
+- `DELETE /api/tickets/{ticketId}/attachments/{attachmentId}`
 - `GET /api/kb/articles?search=...`
 - `GET /api/reports/overview`
 - `GET /api/admin/audit`
 
 ## Следующие технические шаги
 
-- Заменить `EnsureCreated` на EF Core migrations.
-- Подключить MinIO как реализацию `IFileStorage`.
-- Вынести уведомления в RabbitMQ worker.
+- Вынести auth/register/login в application use cases.
+- Добавить RabbitMQ worker для уведомлений.
 - Добавить Redis cache для базы знаний и отчетов.
 - Добавить React/Blazor frontend после восстановления доступа к `node.exe`.

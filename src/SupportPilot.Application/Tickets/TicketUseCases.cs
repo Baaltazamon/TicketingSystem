@@ -315,6 +315,39 @@ public sealed class TicketUseCases(
         return ApplicationResult<TicketAttachmentCreatedResponse>.Success(new TicketAttachmentCreatedResponse(attachment.Id));
     }
 
+    public async Task<ApplicationResult> DeleteAttachmentAsync(
+        Guid ticketId,
+        Guid attachmentId,
+        TicketActor actor,
+        CancellationToken cancellationToken = default)
+    {
+        var ticket = await db.Tickets.SingleOrDefaultAsync(x => x.Id == ticketId, cancellationToken);
+        if (ticket is null)
+        {
+            return ApplicationResult.Failure(ApplicationError.NotFound, "Обращение не найдено.");
+        }
+
+        if (!CanReadTicket(actor, ticket))
+        {
+            return ApplicationResult.Failure(ApplicationError.Forbidden, "Нет доступа к обращению.");
+        }
+
+        var attachment = await db.TicketAttachments.SingleOrDefaultAsync(
+            x => x.Id == attachmentId && x.TicketId == ticketId,
+            cancellationToken);
+        if (attachment is null)
+        {
+            return ApplicationResult.Failure(ApplicationError.NotFound, "Вложение не найдено.");
+        }
+
+        await fileStorage.DeleteAsync(attachment.StorageKey, cancellationToken);
+        db.TicketAttachments.Remove(attachment);
+        AddAudit(actor.Id, AuditAction.Deleted, nameof(TicketAttachment), attachment.Id, attachment.FileName);
+        await db.SaveChangesAsync(cancellationToken);
+
+        return ApplicationResult.Success();
+    }
+
     private async Task<bool> UserHasRoleAsync(Guid userId, CancellationToken cancellationToken, params string[] roles) =>
         await db.UserRoles.AnyAsync(x => x.UserId == userId && roles.Contains(x.Role.Name), cancellationToken);
 

@@ -1,5 +1,6 @@
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using SupportPilot.Application;
@@ -118,5 +119,16 @@ app.MapKnowledgeBaseEndpoints();
 app.MapReportEndpoints();
 app.MapNotificationEndpoints();
 app.MapHub<TicketHub>("/hubs/tickets");
+app.MapHealthChecks("/api/health");
+app.MapHealthChecks("/api/health/ready", new HealthCheckOptions
+{
+    Predicate = check => check.Tags.Contains("ready")
+});
+app.MapHealthChecks("/api/health/live", new HealthCheckOptions
+{
+    Predicate = _ => false
+});
 
 app.Run();
+
+public partial class Program;

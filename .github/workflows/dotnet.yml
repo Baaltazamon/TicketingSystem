@@ -1,0 +1,41 @@
+name: dotnet
+
+on:
+  push:
+    branches:
+      - master
+      - "feature/**"
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  build-test-publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Restore
+        run: dotnet restore SupportPilot.sln
+
+      - name: Build
+        run: dotnet build SupportPilot.sln --configuration Release --no-restore
+
+      - name: Test
+        run: dotnet test SupportPilot.sln --configuration Release --no-build
+
+      - name: Publish API
+        run: dotnet publish src/SupportPilot.Api/SupportPilot.Api.csproj --configuration Release --no-build --output artifacts/api
+
+      - name: Upload API artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: supportpilot-api
+          path: artifacts/api

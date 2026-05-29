@@ -193,9 +193,10 @@ public static class EndpointMappingExtensions
             Guid attachmentId,
             CurrentUser currentUser,
             SupportPilotDbContext db,
-            IFileStorage storage) =>
+            IFileStorage storage,
+            CancellationToken cancellationToken) =>
         {
-            var ticket = await db.Tickets.SingleOrDefaultAsync(x => x.Id == ticketId);
+            var ticket = await db.Tickets.SingleOrDefaultAsync(x => x.Id == ticketId, cancellationToken);
             if (ticket is null)
             {
                 return Results.NotFound();
@@ -206,16 +207,29 @@ public static class EndpointMappingExtensions
                 return Results.Forbid();
             }
 
-            var attachment = await db.TicketAttachments.SingleOrDefaultAsync(x => x.Id == attachmentId && x.TicketId == ticketId);
+            var attachment = await db.TicketAttachments.SingleOrDefaultAsync(
+                x => x.Id == attachmentId && x.TicketId == ticketId,
+                cancellationToken);
             if (attachment is null)
             {
                 return Results.NotFound();
             }
 
-            var path = storage.GetFullPath(attachment.StorageKey);
-            return File.Exists(path)
-                ? Results.File(path, attachment.ContentType, attachment.FileName)
-                : Results.NotFound(new { message = "Файл отсутствует в хранилище." });
+            var download = await storage.OpenReadAsync(attachment.StorageKey, cancellationToken);
+            return download is null
+                ? Results.NotFound(new { message = "Файл отсутствует в хранилище." })
+                : Results.File(download.Content, attachment.ContentType, attachment.FileName);
+        });
+
+        group.MapDelete("/{ticketId:guid}/attachments/{attachmentId:guid}", async (
+            Guid ticketId,
+            Guid attachmentId,
+            CurrentUser currentUser,
+            TicketUseCases tickets,
+            CancellationToken cancellationToken) =>
+        {
+            var result = await tickets.DeleteAttachmentAsync(ticketId, attachmentId, currentUser.ToTicketActor(), cancellationToken);
+            return ToHttpResult(result);
         });
 
         return app;

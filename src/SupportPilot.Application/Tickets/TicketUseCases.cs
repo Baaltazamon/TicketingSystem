@@ -2,6 +2,7 @@ using System.Globalization;
 using Microsoft.EntityFrameworkCore;
 using SupportPilot.Application.Abstractions;
 using SupportPilot.Application.Common;
+using SupportPilot.Application.Notifications;
 using SupportPilot.Contracts;
 using SupportPilot.Domain;
 
@@ -10,7 +11,8 @@ namespace SupportPilot.Application.Tickets;
 public sealed class TicketUseCases(
     ISupportPilotDbContext db,
     IFileStorage fileStorage,
-    ITicketRealtimeNotifier realtimeNotifier)
+    ITicketRealtimeNotifier realtimeNotifier,
+    INotificationPublisher notificationPublisher)
 {
     public async Task<IReadOnlyList<TicketListItemResponse>> ListAsync(
         TicketQuery query,
@@ -207,19 +209,23 @@ public sealed class TicketUseCases(
             Reason = request.Reason,
             CreatedAt = now
         });
+        NotificationMessage? notification = null;
         if (ticket.CreatedById != actor.Id)
         {
-            db.Notifications.Add(new Notification
-            {
-                UserId = ticket.CreatedById,
-                TicketId = ticket.Id,
-                Type = NotificationType.TicketUpdated,
-                Message = $"Статус обращения {ticket.Number} изменен: {previous} -> {request.Status}"
-            });
+            notification = new NotificationMessage(
+                ticket.CreatedById,
+                ticket.Id,
+                NotificationType.TicketUpdated,
+                $"Статус обращения {ticket.Number} изменен: {previous} -> {request.Status}");
         }
 
         AddAudit(actor.Id, AuditAction.StatusChanged, nameof(Ticket), ticket.Id, $"{previous} -> {request.Status}");
         await db.SaveChangesAsync(cancellationToken);
+        if (notification is not null)
+        {
+            await notificationPublisher.PublishAsync(notification, cancellationToken);
+        }
+
         await realtimeNotifier.TicketUpdatedAsync(ticket.Id, new { ticket.Id, ticket.Status }, cancellationToken);
 
         return ApplicationResult.Success();
@@ -251,19 +257,23 @@ public sealed class TicketUseCases(
 
         ticket.AssignedToId = request.AssignedToId;
         ticket.UpdatedAt = DateTimeOffset.UtcNow;
+        NotificationMessage? notification = null;
         if (request.AssignedToId.HasValue)
         {
-            db.Notifications.Add(new Notification
-            {
-                UserId = request.AssignedToId,
-                TicketId = ticket.Id,
-                Type = NotificationType.TicketAssigned,
-                Message = $"Вам назначено обращение {ticket.Number}"
-            });
+            notification = new NotificationMessage(
+                request.AssignedToId,
+                ticket.Id,
+                NotificationType.TicketAssigned,
+                $"Вам назначено обращение {ticket.Number}");
         }
 
         AddAudit(actor.Id, AuditAction.Assigned, nameof(Ticket), ticket.Id, $"Assigned to {request.AssignedToId}");
         await db.SaveChangesAsync(cancellationToken);
+        if (notification is not null)
+        {
+            await notificationPublisher.PublishAsync(notification, cancellationToken);
+        }
+
         await realtimeNotifier.TicketAssignedAsync(ticket.Id, ticket.AssignedToId, cancellationToken);
 
         return ApplicationResult.Success();
@@ -306,16 +316,15 @@ public sealed class TicketUseCases(
             IsInternal = request.IsInternal,
             CreatedAt = now
         });
-        db.Notifications.Add(new Notification
-        {
-            UserId = ticket.CreatedById == actor.Id ? ticket.AssignedToId : ticket.CreatedById,
-            TicketId = ticket.Id,
-            Type = NotificationType.CommentAdded,
-            Message = $"Новый комментарий в обращении {ticket.Number}"
-        });
+        var notification = new NotificationMessage(
+            ticket.CreatedById == actor.Id ? ticket.AssignedToId : ticket.CreatedById,
+            ticket.Id,
+            NotificationType.CommentAdded,
+            $"Новый комментарий в обращении {ticket.Number}");
 
         AddAudit(actor.Id, AuditAction.Commented, nameof(Ticket), ticket.Id, request.IsInternal ? "Internal note added" : "Public comment added");
         await db.SaveChangesAsync(cancellationToken);
+        await notificationPublisher.PublishAsync(notification, cancellationToken);
         await realtimeNotifier.CommentAddedAsync(ticket.Id, cancellationToken);
 
         return ApplicationResult.Success();

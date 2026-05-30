@@ -1,16 +1,21 @@
 using Microsoft.EntityFrameworkCore;
 using SupportPilot.Application.Abstractions;
+using SupportPilot.Application.Notifications;
 using SupportPilot.Domain;
 using SupportPilot.Infrastructure.Data;
 
 namespace SupportPilot.Infrastructure.Services;
 
-public sealed class SlaBreachProcessor(SupportPilotDbContext db, ITicketRealtimeNotifier realtimeNotifier)
+public sealed class SlaBreachProcessor(
+    SupportPilotDbContext db,
+    ITicketRealtimeNotifier realtimeNotifier,
+    INotificationPublisher notificationPublisher)
 {
     public async Task<int> CheckSlaAsync(CancellationToken cancellationToken)
     {
         var now = DateTimeOffset.UtcNow;
         var breachCount = 0;
+        var notifications = new List<NotificationMessage>();
 
         var tickets = await db.Tickets
             .Where(x => x.Status != TicketStatus.Resolved && x.Status != TicketStatus.Closed && x.Status != TicketStatus.Cancelled)
@@ -24,14 +29,14 @@ public sealed class SlaBreachProcessor(SupportPilotDbContext db, ITicketRealtime
             {
                 ticket.FirstResponseBreached = true;
                 breached = true;
-                db.Notifications.Add(CreateSlaNotification(ticket, "Нарушен SLA первого ответа"));
+                notifications.Add(CreateSlaNotification(ticket, "Нарушен SLA первого ответа"));
             }
 
             if (!ticket.ResolutionBreached && ticket.ResolutionDueAt < now)
             {
                 ticket.ResolutionBreached = true;
                 breached = true;
-                db.Notifications.Add(CreateSlaNotification(ticket, "Нарушен SLA решения"));
+                notifications.Add(CreateSlaNotification(ticket, "Нарушен SLA решения"));
             }
 
             if (breached)
@@ -51,17 +56,21 @@ public sealed class SlaBreachProcessor(SupportPilotDbContext db, ITicketRealtime
         if (db.ChangeTracker.HasChanges())
         {
             await db.SaveChangesAsync(cancellationToken);
+            foreach (var notification in notifications)
+            {
+                await notificationPublisher.PublishAsync(notification, cancellationToken);
+            }
+
             await realtimeNotifier.SlaUpdatedAsync(cancellationToken);
         }
 
         return breachCount;
     }
 
-    private static Notification CreateSlaNotification(Ticket ticket, string message) => new()
-    {
-        UserId = ticket.AssignedToId,
-        TicketId = ticket.Id,
-        Type = NotificationType.SlaBreached,
-        Message = $"{message}: {ticket.Number} {ticket.Title}"
-    };
+    private static NotificationMessage CreateSlaNotification(Ticket ticket, string message) =>
+        new(
+            ticket.AssignedToId,
+            ticket.Id,
+            NotificationType.SlaBreached,
+            $"{message}: {ticket.Number} {ticket.Title}");
 }

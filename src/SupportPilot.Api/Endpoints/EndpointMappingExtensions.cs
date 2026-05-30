@@ -273,6 +273,9 @@ public static class EndpointMappingExtensions
             var logs = await db.AuditLogs
                 .AsNoTracking()
                 .Include(x => x.Actor)
+                .ToListAsync();
+
+            var result = logs
                 .OrderByDescending(x => x.CreatedAt)
                 .Take(200)
                 .Select(x => new
@@ -285,9 +288,9 @@ public static class EndpointMappingExtensions
                     actor = x.Actor == null ? null : x.Actor.DisplayName,
                     x.CreatedAt
                 })
-                .ToListAsync();
+                .ToList();
 
-            return Results.Ok(logs);
+            return Results.Ok(result);
         });
 
         return app;
@@ -418,11 +421,14 @@ public static class EndpointMappingExtensions
             var notifications = await db.Notifications
                 .AsNoTracking()
                 .Where(x => x.UserId == currentUser.Id || x.UserId == null)
-                .OrderByDescending(x => x.CreatedAt)
-                .Take(100)
                 .ToListAsync();
 
-            return Results.Ok(notifications);
+            var result = notifications
+                .OrderByDescending(x => x.CreatedAt)
+                .Take(100)
+                .ToList();
+
+            return Results.Ok(result);
         });
 
         group.MapPost("/{id:guid}/read", async (Guid id, CurrentUser currentUser, SupportPilotDbContext db) =>

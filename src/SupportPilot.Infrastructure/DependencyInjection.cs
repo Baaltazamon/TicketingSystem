@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Minio;
 using SupportPilot.Application.Abstractions;
 using SupportPilot.Infrastructure.Auth;
@@ -11,11 +12,18 @@ namespace SupportPilot.Infrastructure;
 
 public static class DependencyInjection
 {
-    public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
+    public static IServiceCollection AddInfrastructure(
+        this IServiceCollection services,
+        IConfiguration configuration,
+        Action<InfrastructureRegistrationOptions>? configure = null)
     {
+        var registrationOptions = new InfrastructureRegistrationOptions();
+        configure?.Invoke(registrationOptions);
+
         services.Configure<JwtOptions>(configuration.GetSection(JwtOptions.SectionName));
         services.Configure<FileStorageOptions>(configuration.GetSection(FileStorageOptions.SectionName));
         services.Configure<DatabaseOptions>(configuration.GetSection(DatabaseOptions.SectionName));
+        services.Configure<NotificationOptions>(configuration.GetSection(NotificationOptions.SectionName));
 
         var databaseProvider = configuration.GetSection(DatabaseOptions.SectionName).Get<DatabaseOptions>()?.Provider ?? "Sqlite";
         services.AddDbContext<SupportPilotDbContext>(options =>
@@ -39,6 +47,16 @@ public static class DependencyInjection
         services.AddScoped<ITokenService>(provider => provider.GetRequiredService<JwtTokenService>());
         services.AddScoped<IPasswordHasher, AspNetPasswordHasher>();
         services.AddScoped<IUserAccountStore, UserAccountStore>();
+        services.AddScoped<DatabaseNotificationPublisher>();
+        services.AddScoped<RabbitMqNotificationPublisher>();
+        services.AddScoped<NotificationInbox>();
+        services.AddScoped<INotificationPublisher>(provider =>
+        {
+            var options = configuration.GetSection(NotificationOptions.SectionName).Get<NotificationOptions>() ?? new NotificationOptions();
+            return options.Transport.Equals("RabbitMQ", StringComparison.OrdinalIgnoreCase)
+                ? provider.GetRequiredService<RabbitMqNotificationPublisher>()
+                : provider.GetRequiredService<DatabaseNotificationPublisher>();
+        });
         services.AddScoped<IFileStorage>(provider =>
         {
             var options = configuration.GetSection(FileStorageOptions.SectionName).Get<FileStorageOptions>() ?? new FileStorageOptions();
@@ -49,6 +67,7 @@ public static class DependencyInjection
         services.AddScoped<LocalFileStorage>();
         services.AddScoped<MinioFileStorage>();
         services.AddScoped<SlaBreachProcessor>();
+        services.TryAddSingleton<ITicketRealtimeNotifier, NoopTicketRealtimeNotifier>();
         services.AddSingleton<IMinioClient>(_ =>
         {
             var options = configuration.GetSection(FileStorageOptions.SectionName).Get<FileStorageOptions>() ?? new FileStorageOptions();
@@ -63,8 +82,20 @@ public static class DependencyInjection
 
             return client.Build();
         });
-        services.AddHostedService<SlaMonitorService>();
-        services.AddInfrastructureHealthChecks(configuration);
+        if (registrationOptions.EnableSlaMonitor)
+        {
+            services.AddHostedService<SlaMonitorService>();
+        }
+
+        if (registrationOptions.EnableRabbitMqNotificationWorker)
+        {
+            services.AddHostedService<RabbitMqNotificationWorker>();
+        }
+
+        if (registrationOptions.EnableHealthChecks)
+        {
+            services.AddInfrastructureHealthChecks(configuration);
+        }
 
         return services;
     }
@@ -89,4 +120,11 @@ public static class DependencyInjection
 
         return services;
     }
+}
+
+public sealed class InfrastructureRegistrationOptions
+{
+    public bool EnableSlaMonitor { get; set; }
+    public bool EnableRabbitMqNotificationWorker { get; set; }
+    public bool EnableHealthChecks { get; set; } = true;
 }

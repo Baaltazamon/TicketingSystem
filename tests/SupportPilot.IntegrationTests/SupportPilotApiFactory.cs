@@ -19,6 +19,7 @@ public sealed class SupportPilotApiFactory : WebApplicationFactory<Program>
                 ["ConnectionStrings:Sqlite"] = $"Data Source={DatabasePath}",
                 ["ConnectionStrings:Redis"] = "",
                 ["ConnectionStrings:RabbitMQ"] = "",
+                ["Notifications:Transport"] = "Database",
                 ["FileStorage:Provider"] = "Local",
                 ["FileStorage:RootPath"] = StoragePath,
                 ["Jwt:SeedAdminEmail"] = "admin@supportpilot.local",

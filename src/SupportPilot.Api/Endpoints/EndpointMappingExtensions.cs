@@ -270,14 +270,15 @@ public static class EndpointMappingExtensions
 
         group.MapGet("/audit", async (SupportPilotDbContext db) =>
         {
-            var logs = await db.AuditLogs
+            var result = await db.AuditLogs
+                .FromSqlRaw("""
+                    SELECT *
+                    FROM "AuditLogs"
+                    ORDER BY "CreatedAt" DESC
+                    LIMIT 200
+                    """)
                 .AsNoTracking()
                 .Include(x => x.Actor)
-                .ToListAsync();
-
-            var result = logs
-                .OrderByDescending(x => x.CreatedAt)
-                .Take(200)
                 .Select(x => new
                 {
                     x.Id,
@@ -288,7 +289,7 @@ public static class EndpointMappingExtensions
                     actor = x.Actor == null ? null : x.Actor.DisplayName,
                     x.CreatedAt
                 })
-                .ToList();
+                .ToListAsync();
 
             return Results.Ok(result);
         });
@@ -419,16 +420,17 @@ public static class EndpointMappingExtensions
         group.MapGet("/", async (CurrentUser currentUser, SupportPilotDbContext db) =>
         {
             var notifications = await db.Notifications
+                .FromSqlInterpolated($"""
+                    SELECT *
+                    FROM "Notifications"
+                    WHERE "UserId" = {currentUser.Id} OR "UserId" IS NULL
+                    ORDER BY "CreatedAt" DESC
+                    LIMIT 100
+                    """)
                 .AsNoTracking()
-                .Where(x => x.UserId == currentUser.Id || x.UserId == null)
                 .ToListAsync();
 
-            var result = notifications
-                .OrderByDescending(x => x.CreatedAt)
-                .Take(100)
-                .ToList();
-
-            return Results.Ok(result);
+            return Results.Ok(notifications);
         });
 
         group.MapPost("/{id:guid}/read", async (Guid id, CurrentUser currentUser, SupportPilotDbContext db) =>

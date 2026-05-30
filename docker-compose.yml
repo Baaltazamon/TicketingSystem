@@ -16,6 +16,8 @@ services:
       FileStorage__SecretKey: ${MINIO_ROOT_PASSWORD:-supportpilot123}
       FileStorage__BucketName: ${MINIO_BUCKET:-supportpilot-attachments}
       FileStorage__UseSsl: false
+      Notifications__Transport: RabbitMQ
+      Notifications__QueueName: ${NOTIFICATIONS_QUEUE:-supportpilot.notifications}
       Jwt__SigningKey: ${JWT_SIGNING_KEY:-DOCKER_SUPPORTPILOT_SECRET_32_CHARS_MINIMUM}
     ports:
       - "8080:8080"
@@ -24,6 +26,32 @@ services:
         condition: service_healthy
       redis:
         condition: service_started
+      rabbitmq:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+
+  notifications-worker:
+    build:
+      context: .
+      dockerfile: src/SupportPilot.Notifications.Worker/Dockerfile
+    environment:
+      DOTNET_ENVIRONMENT: Development
+      Database__Provider: PostgreSql
+      ConnectionStrings__PostgreSql: Host=postgres;Port=5432;Database=${POSTGRES_DB:-supportpilot};Username=${POSTGRES_USER:-supportpilot};Password=${POSTGRES_PASSWORD:-supportpilot}
+      ConnectionStrings__RabbitMQ: amqp://${RABBITMQ_DEFAULT_USER:-guest}:${RABBITMQ_DEFAULT_PASS:-guest}@rabbitmq:5672/
+      Notifications__Transport: RabbitMQ
+      Notifications__QueueName: ${NOTIFICATIONS_QUEUE:-supportpilot.notifications}
+      FileStorage__Provider: Minio
+      FileStorage__Endpoint: minio:9000
+      FileStorage__AccessKey: ${MINIO_ROOT_USER:-supportpilot}
+      FileStorage__SecretKey: ${MINIO_ROOT_PASSWORD:-supportpilot123}
+      FileStorage__BucketName: ${MINIO_BUCKET:-supportpilot-attachments}
+      FileStorage__UseSsl: false
+      Jwt__SigningKey: ${JWT_SIGNING_KEY:-DOCKER_SUPPORTPILOT_SECRET_32_CHARS_MINIMUM}
+    depends_on:
+      postgres:
+        condition: service_healthy
       rabbitmq:
         condition: service_healthy
       minio:

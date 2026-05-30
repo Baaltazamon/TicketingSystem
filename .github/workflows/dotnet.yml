@@ -34,8 +34,17 @@ jobs:
       - name: Publish API
         run: dotnet publish src/SupportPilot.Api/SupportPilot.Api.csproj --configuration Release --no-build --output artifacts/api
 
+      - name: Publish Notifications Worker
+        run: dotnet publish src/SupportPilot.Notifications.Worker/SupportPilot.Notifications.Worker.csproj --configuration Release --no-build --output artifacts/notifications-worker
+
       - name: Upload API artifact
         uses: actions/upload-artifact@v4
         with:
           name: supportpilot-api
           path: artifacts/api
+
+      - name: Upload Notifications Worker artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: supportpilot-notifications-worker
+          path: artifacts/notifications-worker

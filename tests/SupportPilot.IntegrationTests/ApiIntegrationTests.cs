@@ -252,6 +252,15 @@ public sealed class ApiIntegrationTests(SupportPilotApiFactory factory) : IClass
         });
         Assert.Equal(HttpStatusCode.NoContent, validAssignment.StatusCode);
 
+        using (var scope = factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<SupportPilotDbContext>();
+            Assert.True(await db.Notifications.AnyAsync(x =>
+                x.TicketId == ticketId &&
+                x.UserId == agentId &&
+                x.Type == NotificationType.TicketAssigned));
+        }
+
         var mine = await agent.GetAsync("/api/tickets?mine=true");
         mine.EnsureSuccessStatusCode();
         using var json = await JsonDocument.ParseAsync(await mine.Content.ReadAsStreamAsync());

@@ -10,6 +10,7 @@ SupportPilot - MVP системы обращений в поддержку на 
 - Обращения, категории, статусы, приоритеты и назначение ответственных.
 - SLA-политики для `Critical`, `High`, `Normal`, `Low`.
 - Фоновый SLA-monitor, который помечает нарушения и создает уведомления.
+- Отдельный `SupportPilot.Notifications.Worker` для SLA monitor и обработки уведомлений через RabbitMQ.
 - Публичные комментарии и внутренние заметки.
 - Вложения через `IFileStorage`: локальное хранилище или MinIO.
 - Timeline обращения: создание, смена статуса, комментарии, файлы.
@@ -100,11 +101,13 @@ Compose переключает API на PostgreSQL и MinIO:
 ```text
 Database__Provider=PostgreSql
 FileStorage__Provider=Minio
+Notifications__Transport=RabbitMQ
 ```
 
 Сервисы:
 
 - API: `http://localhost:8080`
+- Notifications worker: отдельный контейнер без HTTP-порта.
 - PostgreSQL: `localhost:5432`
 - MinIO console: `http://localhost:9001`
 - RabbitMQ management: `http://localhost:15672`
@@ -140,7 +143,8 @@ src/
   SupportPilot.Application     use cases and application ports
   SupportPilot.Contracts       request/response DTO
   SupportPilot.Domain          entities, enums and core business concepts
-  SupportPilot.Infrastructure  EF Core, PostgreSQL/SQLite, JWT, password hashing, file storage, SLA worker
+  SupportPilot.Infrastructure  EF Core, PostgreSQL/SQLite, JWT, password hashing, file storage, notification adapters
+  SupportPilot.Notifications.Worker  RabbitMQ consumer, notification persistence, SLA monitor host
 tests/
   SupportPilot.IntegrationTests
 ```
@@ -162,6 +166,7 @@ Application определяет порты:
 - `IPasswordHasher` - хеширование и проверка пароля.
 - `ITokenService` - выпуск access token.
 - `IFileStorage` - работа с файлами вложений.
+- `INotificationPublisher` - публикация уведомлений в локальную БД или RabbitMQ.
 
 Infrastructure содержит реализации портов:
 
@@ -169,6 +174,11 @@ Infrastructure содержит реализации портов:
 - `AspNetPasswordHasher` - хеширование через ASP.NET Core Identity.
 - `JwtTokenService` - генерация JWT.
 - `LocalFileStorage` и `MinioFileStorage` - файловое хранилище.
+- `DatabaseNotificationPublisher` - локальный режим уведомлений без RabbitMQ.
+- `RabbitMqNotificationPublisher` - публикация notification-событий в очередь.
+- `RabbitMqNotificationWorker` - чтение очереди и сохранение уведомлений в БД.
+
+В локальном режиме API сохраняет уведомления напрямую в БД через `Notifications:Transport=Database`. В Docker/production-like режиме API публикует события в RabbitMQ через `Notifications:Transport=RabbitMQ`, а `SupportPilot.Notifications.Worker` сохраняет их в таблицу `Notifications`.
 
 Единый результат application use cases возвращается через `ApplicationResult<T>`, а API маппит ошибки в HTTP-коды: validation, not found, unauthorized, forbidden и conflict.
 
@@ -196,10 +206,10 @@ Infrastructure содержит реализации портов:
 dotnet build SupportPilot.sln
 dotnet test SupportPilot.sln
 dotnet publish src/SupportPilot.Api/SupportPilot.Api.csproj -c Release -o artifacts/api
+dotnet publish src/SupportPilot.Notifications.Worker/SupportPilot.Notifications.Worker.csproj -c Release -o artifacts/notifications-worker
 ```
 
 ## Следующие технические шаги
 
-- Вынести уведомления в отдельный RabbitMQ worker.
 - Добавить Redis cache для базы знаний и отчетов.
 - Добавить React/Blazor frontend после восстановления доступа к `node.exe`.

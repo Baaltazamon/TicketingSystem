@@ -19,6 +19,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{8FD9EDAF
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SupportPilot.IntegrationTests", "tests\SupportPilot.IntegrationTests\SupportPilot.IntegrationTests.csproj", "{8A8FF946-E9F2-4679-A252-5EF4DA5EDC97}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SupportPilot.Notifications.Worker", "src\SupportPilot.Notifications.Worker\SupportPilot.Notifications.Worker.csproj", "{6413156E-015F-4F04-892D-6322F52F55C8}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -52,6 +54,10 @@ Global
 		{8A8FF946-E9F2-4679-A252-5EF4DA5EDC97}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{8A8FF946-E9F2-4679-A252-5EF4DA5EDC97}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{8A8FF946-E9F2-4679-A252-5EF4DA5EDC97}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6413156E-015F-4F04-892D-6322F52F55C8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6413156E-015F-4F04-892D-6322F52F55C8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6413156E-015F-4F04-892D-6322F52F55C8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6413156E-015F-4F04-892D-6322F52F55C8}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{2570FC2B-7B0C-4EF9-B7C2-D49423A2E0C6} = {BB4C6407-E327-461A-9E9F-24E6B52B8177}
@@ -60,5 +66,6 @@ Global
 		{F9E4CF31-06E0-4194-B29A-36A8C35E0130} = {BB4C6407-E327-461A-9E9F-24E6B52B8177}
 		{8A7A112C-5862-4DE9-8911-E8E30BA8F488} = {BB4C6407-E327-461A-9E9F-24E6B52B8177}
 		{8A8FF946-E9F2-4679-A252-5EF4DA5EDC97} = {8FD9EDAF-E10E-4F44-8F3A-4E4D7E908963}
+		{6413156E-015F-4F04-892D-6322F52F55C8} = {BB4C6407-E327-461A-9E9F-24E6B52B8177}
 	EndGlobalSection
 EndGlobal

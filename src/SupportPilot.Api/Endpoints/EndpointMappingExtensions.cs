@@ -1,13 +1,12 @@
-using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SupportPilot.Application.Abstractions;
+using SupportPilot.Application.Auth;
 using SupportPilot.Application.Common;
 using SupportPilot.Application.Tickets;
 using SupportPilot.Api.Auth;
 using SupportPilot.Contracts;
 using SupportPilot.Domain;
-using SupportPilot.Infrastructure.Auth;
 using SupportPilot.Infrastructure.Data;
 
 namespace SupportPilot.Api.Endpoints;
@@ -18,67 +17,33 @@ public static class EndpointMappingExtensions
     {
         var group = app.MapGroup("/api/auth").WithTags("Auth");
 
-        group.MapPost("/register", async (RegisterRequest request, SupportPilotDbContext db) =>
+        group.MapPost("/register", async (
+            RegisterRequest request,
+            AuthUseCases auth,
+            CancellationToken cancellationToken) =>
         {
-            var email = request.Email.Trim().ToLowerInvariant();
-            if (await db.Users.AnyAsync(x => x.Email == email))
-            {
-                return Results.Conflict(new { message = "Пользователь с таким email уже существует." });
-            }
-
-            var customerRole = await db.Roles.SingleAsync(x => x.Name == "Customer");
-            var user = new User
-            {
-                Email = email,
-                DisplayName = request.DisplayName.Trim()
-            };
-            user.PasswordHash = new PasswordHasher<User>().HashPassword(user, request.Password);
-            user.UserRoles.Add(new UserRole { User = user, Role = customerRole });
-
-            db.Users.Add(user);
-            db.AuditLogs.Add(new AuditLog
-            {
-                ActorId = user.Id,
-                Action = AuditAction.Created,
-                EntityName = nameof(User),
-                EntityId = user.Id.ToString(),
-                Details = $"Registered user {email}"
-            });
-            await db.SaveChangesAsync();
-
-            return Results.Created($"/api/users/{user.Id}", ToProfile(user));
+            var result = await auth.RegisterAsync(request, cancellationToken);
+            return result.IsSuccess
+                ? Results.Created($"/api/users/{result.Value!.Id}", result.Value)
+                : ToHttpResult(result);
         });
 
-        group.MapPost("/login", async (LoginRequest request, SupportPilotDbContext db, JwtTokenService tokens) =>
+        group.MapPost("/login", async (
+            LoginRequest request,
+            AuthUseCases auth,
+            CancellationToken cancellationToken) =>
         {
-            var email = request.Email.Trim().ToLowerInvariant();
-            var user = await db.Users
-                .Include(x => x.UserRoles)
-                .ThenInclude(x => x.Role)
-                .SingleOrDefaultAsync(x => x.Email == email && x.IsActive);
-
-            if (user is null)
-            {
-                return Results.Unauthorized();
-            }
-
-            var result = new PasswordHasher<User>().VerifyHashedPassword(user, user.PasswordHash, request.Password);
-            if (result == PasswordVerificationResult.Failed)
-            {
-                return Results.Unauthorized();
-            }
-
-            return Results.Ok(new AuthResponse(tokens.CreateToken(user), ToProfile(user)));
+            var result = await auth.LoginAsync(request, cancellationToken);
+            return result.IsSuccess ? Results.Ok(result.Value) : ToHttpResult(result);
         });
 
-        group.MapGet("/me", async (CurrentUser currentUser, SupportPilotDbContext db) =>
+        group.MapGet("/me", async (
+            CurrentUser currentUser,
+            AuthUseCases auth,
+            CancellationToken cancellationToken) =>
         {
-            var user = await db.Users
-                .Include(x => x.UserRoles)
-                .ThenInclude(x => x.Role)
-                .SingleOrDefaultAsync(x => x.Id == currentUser.Id);
-
-            return user is null ? Results.Unauthorized() : Results.Ok(ToProfile(user));
+            var result = await auth.GetCurrentUserAsync(currentUser.Id, cancellationToken);
+            return result.IsSuccess ? Results.Ok(result.Value) : ToHttpResult(result);
         }).RequireAuthorization();
 
         return app;
@@ -494,6 +459,7 @@ public static class EndpointMappingExtensions
         {
             ApplicationError.Validation => Results.BadRequest(new { message }),
             ApplicationError.NotFound => Results.NotFound(new { message }),
+            ApplicationError.Unauthorized => Results.Unauthorized(),
             ApplicationError.Forbidden => Results.Forbid(),
             ApplicationError.Conflict => Results.Conflict(new { message }),
             _ => Results.BadRequest(new { message })

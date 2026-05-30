@@ -6,7 +6,8 @@ public enum ApplicationError
     Validation = 1,
     NotFound = 2,
     Forbidden = 3,
-    Conflict = 4
+    Conflict = 4,
+    Unauthorized = 5
 }
 
 public sealed record ApplicationResult<T>(T? Value, ApplicationError Error, string? Message)

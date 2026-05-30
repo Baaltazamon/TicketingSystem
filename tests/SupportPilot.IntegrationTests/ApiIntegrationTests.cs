@@ -46,6 +46,71 @@ public sealed class ApiIntegrationTests(SupportPilotApiFactory factory) : IClass
     }
 
     [Fact]
+    public async Task RegistersLogsInAndReturnsCurrentUser()
+    {
+        var client = factory.CreateClient();
+        var email = $"auth-{Guid.NewGuid():N}@supportpilot.local";
+
+        var register = await client.PostAsJsonAsync("/api/auth/register", new
+        {
+            email,
+            displayName = "Auth Test User",
+            password = "Password123!"
+        });
+        Assert.Equal(HttpStatusCode.Created, register.StatusCode);
+        using var registerJson = await JsonDocument.ParseAsync(await register.Content.ReadAsStreamAsync());
+        Assert.Equal(email, registerJson.RootElement.GetProperty("email").GetString());
+        Assert.Contains(
+            registerJson.RootElement.GetProperty("roles").EnumerateArray(),
+            role => role.GetString() == "Customer");
+
+        var login = await client.PostAsJsonAsync("/api/auth/login", new
+        {
+            email,
+            password = "Password123!"
+        });
+        Assert.Equal(HttpStatusCode.OK, login.StatusCode);
+        using var loginJson = await JsonDocument.ParseAsync(await login.Content.ReadAsStreamAsync());
+        var token = loginJson.RootElement.GetProperty("token").GetString();
+        Assert.False(string.IsNullOrWhiteSpace(token));
+
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        var me = await client.GetAsync("/api/auth/me");
+        Assert.Equal(HttpStatusCode.OK, me.StatusCode);
+        using var meJson = await JsonDocument.ParseAsync(await me.Content.ReadAsStreamAsync());
+        Assert.Equal(email, meJson.RootElement.GetProperty("email").GetString());
+    }
+
+    [Fact]
+    public async Task AuthReturnsConsistentErrors()
+    {
+        var client = factory.CreateClient();
+        var email = $"duplicate-{Guid.NewGuid():N}@supportpilot.local";
+        var payload = new
+        {
+            email,
+            displayName = "Duplicate User",
+            password = "Password123!"
+        };
+
+        var firstRegister = await client.PostAsJsonAsync("/api/auth/register", payload);
+        Assert.Equal(HttpStatusCode.Created, firstRegister.StatusCode);
+
+        var duplicateRegister = await client.PostAsJsonAsync("/api/auth/register", payload);
+        Assert.Equal(HttpStatusCode.Conflict, duplicateRegister.StatusCode);
+
+        var invalidLogin = await client.PostAsJsonAsync("/api/auth/login", new
+        {
+            email,
+            password = "WrongPassword123!"
+        });
+        Assert.Equal(HttpStatusCode.Unauthorized, invalidLogin.StatusCode);
+
+        var anonymousMe = await factory.CreateClient().GetAsync("/api/auth/me");
+        Assert.Equal(HttpStatusCode.Unauthorized, anonymousMe.StatusCode);
+    }
+
+    [Fact]
     public async Task UploadsDownloadsAndDeletesAttachment()
     {
         var client = await CreateAuthenticatedClientAsync();

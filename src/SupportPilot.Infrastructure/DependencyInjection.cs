@@ -36,6 +36,9 @@ public static class DependencyInjection
 
         services.AddScoped<ISupportPilotDbContext>(provider => provider.GetRequiredService<SupportPilotDbContext>());
         services.AddScoped<JwtTokenService>();
+        services.AddScoped<ITokenService>(provider => provider.GetRequiredService<JwtTokenService>());
+        services.AddScoped<IPasswordHasher, AspNetPasswordHasher>();
+        services.AddScoped<IUserAccountStore, UserAccountStore>();
         services.AddScoped<IFileStorage>(provider =>
         {
             var options = configuration.GetSection(FileStorageOptions.SectionName).Get<FileStorageOptions>() ?? new FileStorageOptions();

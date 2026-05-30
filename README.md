@@ -4,8 +4,9 @@ SupportPilot - MVP системы обращений в поддержку на 
 
 ## Что уже есть
 
-- Clean Architecture разбиение: `Api`, `Application`, `Domain`, `Infrastructure`, `Contracts`.
+- Clean Architecture: `Api`, `Application`, `Domain`, `Infrastructure`, `Contracts`.
 - JWT-аутентификация и роли `Admin`, `Agent`, `Customer`.
+- Регистрация, вход и получение текущего пользователя через application use cases.
 - Обращения, категории, статусы, приоритеты и назначение ответственных.
 - SLA-политики для `Critical`, `High`, `Normal`, `Low`.
 - Фоновый SLA-monitor, который помечает нарушения и создает уведомления.
@@ -41,7 +42,7 @@ password: Admin123!
 
 ## Infrastructure Profile
 
-Конфигурация выбирает провайдер БД:
+Провайдер базы данных выбирается через конфиг:
 
 ```json
 {
@@ -61,7 +62,7 @@ password: Admin123!
 }
 ```
 
-Конфигурация выбирает провайдер файлов:
+Провайдер файлового хранилища выбирается через конфиг:
 
 ```json
 {
@@ -131,14 +132,6 @@ dotnet ef migrations add MigrationName --project src/SupportPilot.Infrastructure
 
 На старте API вызывает `Database.MigrateAsync()` и затем выполняет seed базовых ролей, SLA, категорий, FAQ и admin-пользователя.
 
-## Проверки
-
-```powershell
-dotnet build SupportPilot.sln
-dotnet test SupportPilot.sln
-dotnet publish src/SupportPilot.Api/SupportPilot.Api.csproj -c Release -o artifacts/api
-```
-
 ## Архитектура
 
 ```text
@@ -147,7 +140,7 @@ src/
   SupportPilot.Application     use cases and application ports
   SupportPilot.Contracts       request/response DTO
   SupportPilot.Domain          entities, enums and core business concepts
-  SupportPilot.Infrastructure  EF Core, PostgreSQL/SQLite, JWT, file storage, SLA worker
+  SupportPilot.Infrastructure  EF Core, PostgreSQL/SQLite, JWT, password hashing, file storage, SLA worker
 tests/
   SupportPilot.IntegrationTests
 ```
@@ -161,7 +154,23 @@ Application -> Domain / Contracts
 Contracts -> Domain
 ```
 
-Внешние механизмы подключаются через порты из `Application`. Например, `TicketUseCases` работает с `IFileStorage`, а конкретные реализации `LocalFileStorage` и `MinioFileStorage` находятся в `Infrastructure`.
+HTTP-слой принимает запросы и возвращает ответы. Бизнес-логика авторизации находится в `SupportPilot.Application/Auth/AuthUseCases.cs`.
+
+Application определяет порты:
+
+- `IUserAccountStore` - доступ к учетным записям, ролям и audit log.
+- `IPasswordHasher` - хеширование и проверка пароля.
+- `ITokenService` - выпуск access token.
+- `IFileStorage` - работа с файлами вложений.
+
+Infrastructure содержит реализации портов:
+
+- `UserAccountStore` - EF Core-доступ к пользователям и ролям.
+- `AspNetPasswordHasher` - хеширование через ASP.NET Core Identity.
+- `JwtTokenService` - генерация JWT.
+- `LocalFileStorage` и `MinioFileStorage` - файловое хранилище.
+
+Единый результат application use cases возвращается через `ApplicationResult<T>`, а API маппит ошибки в HTTP-коды: validation, not found, unauthorized, forbidden и conflict.
 
 ## Основные endpoint-группы
 
@@ -181,9 +190,16 @@ Contracts -> Domain
 - `GET /api/reports/overview`
 - `GET /api/admin/audit`
 
+## Проверки
+
+```powershell
+dotnet build SupportPilot.sln
+dotnet test SupportPilot.sln
+dotnet publish src/SupportPilot.Api/SupportPilot.Api.csproj -c Release -o artifacts/api
+```
+
 ## Следующие технические шаги
 
-- Вынести auth/register/login в application use cases.
-- Добавить RabbitMQ worker для уведомлений.
+- Вынести уведомления в отдельный RabbitMQ worker.
 - Добавить Redis cache для базы знаний и отчетов.
 - Добавить React/Blazor frontend после восстановления доступа к `node.exe`.

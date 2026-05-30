@@ -46,6 +46,79 @@ public sealed class ApiIntegrationTests(SupportPilotApiFactory factory) : IClass
     }
 
     [Fact]
+    public async Task AuditEndpointOrdersAndLimitsRowsInSqliteMode()
+    {
+        var client = await CreateAuthenticatedClientAsync();
+        var marker = $"audit-order-{Guid.NewGuid():N}";
+
+        using (var scope = factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<SupportPilotDbContext>();
+            var baseTime = DateTimeOffset.UtcNow.AddYears(10);
+            for (var i = 0; i < 205; i++)
+            {
+                db.AuditLogs.Add(new AuditLog
+                {
+                    Action = AuditAction.Created,
+                    EntityName = nameof(Ticket),
+                    EntityId = Guid.NewGuid().ToString(),
+                    Details = $"{marker}-{i:000}",
+                    CreatedAt = baseTime.AddMinutes(i)
+                });
+            }
+
+            await db.SaveChangesAsync();
+        }
+
+        var response = await client.GetAsync("/api/admin/audit");
+        response.EnsureSuccessStatusCode();
+        using var json = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
+        var rows = json.RootElement.EnumerateArray().ToList();
+
+        Assert.Equal(200, rows.Count);
+        Assert.Equal($"{marker}-204", rows[0].GetProperty("details").GetString());
+    }
+
+    [Fact]
+    public async Task NotificationsEndpointOrdersAndLimitsRowsInSqliteMode()
+    {
+        var client = await CreateAuthenticatedClientAsync();
+        var marker = $"notification-order-{Guid.NewGuid():N}";
+        Guid adminId;
+
+        using (var scope = factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<SupportPilotDbContext>();
+            adminId = await db.Users
+                .Where(x => x.Email == "admin@supportpilot.local")
+                .Select(x => x.Id)
+                .SingleAsync();
+
+            var baseTime = DateTimeOffset.UtcNow.AddYears(10);
+            for (var i = 0; i < 105; i++)
+            {
+                db.Notifications.Add(new Notification
+                {
+                    UserId = adminId,
+                    Type = NotificationType.TicketUpdated,
+                    Message = $"{marker}-{i:000}",
+                    CreatedAt = baseTime.AddMinutes(i)
+                });
+            }
+
+            await db.SaveChangesAsync();
+        }
+
+        var response = await client.GetAsync("/api/notifications");
+        response.EnsureSuccessStatusCode();
+        using var json = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
+        var rows = json.RootElement.EnumerateArray().ToList();
+
+        Assert.Equal(100, rows.Count);
+        Assert.Equal($"{marker}-104", rows[0].GetProperty("message").GetString());
+    }
+
+    [Fact]
     public async Task RegistersLogsInAndReturnsCurrentUser()
     {
         var client = factory.CreateClient();

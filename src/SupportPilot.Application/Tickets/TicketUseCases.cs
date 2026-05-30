@@ -29,6 +29,27 @@ public sealed class TicketUseCases(
             tickets = tickets.Where(x => x.CreatedById == actor.Id);
         }
 
+        if (actor.IsSupportStaff && query.Mine == true)
+        {
+            tickets = tickets.Where(x => x.AssignedToId == actor.Id);
+        }
+
+        if (actor.IsSupportStaff && query.Unassigned == true)
+        {
+            tickets = tickets.Where(x => x.AssignedToId == null);
+        }
+
+        if (query.Overdue == true)
+        {
+            var now = DateTimeOffset.UtcNow;
+            tickets = tickets.Where(x =>
+                x.Status != TicketStatus.Resolved &&
+                x.Status != TicketStatus.Closed &&
+                x.Status != TicketStatus.Cancelled &&
+                ((x.FirstResponseDueAt != null && x.FirstResponseAt == null && x.FirstResponseDueAt < now) ||
+                 (x.ResolutionDueAt != null && x.ResolvedAt == null && x.ResolutionDueAt < now)));
+        }
+
         if (query.Status.HasValue)
         {
             tickets = tickets.Where(x => x.Status == query.Status.Value);
@@ -55,7 +76,9 @@ public sealed class TicketUseCases(
             tickets = tickets.Where(x => x.Title.Contains(search) || x.Description.Contains(search) || x.Number.Contains(search));
         }
 
-        return await tickets
+        var filteredTickets = await tickets.ToListAsync(cancellationToken);
+
+        return filteredTickets
             .OrderByDescending(x => x.UpdatedAt)
             .Take(100)
             .Select(x => new TicketListItemResponse(
@@ -73,7 +96,7 @@ public sealed class TicketUseCases(
                 x.ResolutionDueAt,
                 x.FirstResponseBreached,
                 x.ResolutionBreached))
-            .ToListAsync(cancellationToken);
+            .ToList();
     }
 
     public async Task<ApplicationResult<TicketCreatedResponse>> CreateAsync(
@@ -156,6 +179,16 @@ public sealed class TicketUseCases(
             return ApplicationResult.Failure(ApplicationError.Forbidden, "Нет доступа к обращению.");
         }
 
+        if (!TicketWorkflow.CanTransition(ticket.Status, request.Status, actor))
+        {
+            var allowed = string.Join(", ", TicketWorkflow.GetAllowedTransitions(ticket.Status, actor));
+            return ApplicationResult.Failure(
+                ApplicationError.Validation,
+                allowed.Length == 0
+                    ? $"Переход из статуса {ticket.Status} запрещен."
+                    : $"Переход {ticket.Status} -> {request.Status} запрещен. Доступные переходы: {allowed}.");
+        }
+
         var previous = ticket.Status;
         var now = DateTimeOffset.UtcNow;
         ticket.Status = request.Status;
@@ -174,6 +207,17 @@ public sealed class TicketUseCases(
             Reason = request.Reason,
             CreatedAt = now
         });
+        if (ticket.CreatedById != actor.Id)
+        {
+            db.Notifications.Add(new Notification
+            {
+                UserId = ticket.CreatedById,
+                TicketId = ticket.Id,
+                Type = NotificationType.TicketUpdated,
+                Message = $"Статус обращения {ticket.Number} изменен: {previous} -> {request.Status}"
+            });
+        }
+
         AddAudit(actor.Id, AuditAction.StatusChanged, nameof(Ticket), ticket.Id, $"{previous} -> {request.Status}");
         await db.SaveChangesAsync(cancellationToken);
         await realtimeNotifier.TicketUpdatedAsync(ticket.Id, new { ticket.Id, ticket.Status }, cancellationToken);
@@ -338,6 +382,11 @@ public sealed class TicketUseCases(
         if (attachment is null)
         {
             return ApplicationResult.Failure(ApplicationError.NotFound, "Вложение не найдено.");
+        }
+
+        if (!actor.IsSupportStaff && attachment.UploadedById != actor.Id)
+        {
+            return ApplicationResult.Failure(ApplicationError.Forbidden, "Удалить можно только собственное вложение.");
         }
 
         await fileStorage.DeleteAsync(attachment.StorageKey, cancellationToken);

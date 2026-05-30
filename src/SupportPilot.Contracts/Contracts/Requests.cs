@@ -11,7 +11,15 @@ public sealed record CreateTicketRequest(string Title, string Description, Guid 
 public sealed record UpdateTicketStatusRequest(TicketStatus Status, string? Reason);
 public sealed record AssignTicketRequest(Guid? AssignedToId);
 public sealed record CreateCommentRequest(string Body, bool IsInternal);
-public sealed record TicketQuery(TicketStatus? Status, TicketPriority? Priority, Guid? CategoryId, Guid? AssignedToId, string? Search);
+public sealed record TicketQuery(
+    TicketStatus? Status,
+    TicketPriority? Priority,
+    Guid? CategoryId,
+    Guid? AssignedToId,
+    string? Search,
+    bool? Mine,
+    bool? Unassigned,
+    bool? Overdue);
 
 public sealed record UpsertCategoryRequest(string Name, string? Description, bool IsActive);
 public sealed record UpsertSlaPolicyRequest(string Name, TicketPriority Priority, int FirstResponseMinutes, int ResolutionMinutes, bool IsActive);

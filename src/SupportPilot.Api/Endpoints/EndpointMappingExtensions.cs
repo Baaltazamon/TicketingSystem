@@ -66,6 +66,13 @@ public static class EndpointMappingExtensions
     {
         var group = app.MapGroup("/api/tickets").WithTags("Tickets").RequireAuthorization();
 
+        group.MapGet("/categories", async (SupportPilotDbContext db, CancellationToken cancellationToken) =>
+            Results.Ok(await db.TicketCategories
+                .AsNoTracking()
+                .Where(x => x.IsActive)
+                .OrderBy(x => x.Name)
+                .ToListAsync(cancellationToken)));
+
         group.MapGet("/", async (
             [AsParameters] TicketQuery query,
             CurrentUser currentUser,

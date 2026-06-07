@@ -46,6 +46,24 @@ public sealed class ApiIntegrationTests(SupportPilotApiFactory factory) : IClass
     }
 
     [Fact]
+    public async Task ReturnsActiveTicketCategoriesForAuthenticatedUsers()
+    {
+        var client = await CreateAuthenticatedClientAsync("categories-customer");
+
+        var response = await client.GetAsync("/api/tickets/categories");
+
+        response.EnsureSuccessStatusCode();
+        using var json = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
+        var rows = json.RootElement.EnumerateArray().ToList();
+
+        Assert.NotEmpty(rows);
+        Assert.All(rows, category => Assert.True(category.GetProperty("isActive").GetBoolean()));
+        Assert.Equal(
+            rows.Select(category => category.GetProperty("name").GetString()).OrderBy(name => name).ToList(),
+            rows.Select(category => category.GetProperty("name").GetString()).ToList());
+    }
+
+    [Fact]
     public async Task AuditEndpointOrdersAndLimitsRowsInSqliteMode()
     {
         var client = await CreateAuthenticatedClientAsync();

@@ -43,12 +43,17 @@ npm run dev
 
 ## Scope
 
-This feature branch contains only the frontend shell:
+The frontend currently contains:
 
 - login and JWT session persistence;
 - protected application layout;
 - API readiness indicator;
-- navigation placeholders for dashboard, tickets, knowledge base and admin;
-- thin ticket read preview to verify authenticated API access.
+- ticket list filters;
+- ticket creation;
+- ticket details with SLA metadata;
+- status and assignment controls for support users;
+- public comments and internal notes;
+- attachment upload, download and deletion;
+- navigation placeholders for dashboard, knowledge base and admin.
 
-Full ticket workflows, realtime dashboard widgets, knowledge base administration and Redis-backed backend caching belong to separate PRs.
+Realtime dashboard widgets, knowledge base administration and Redis-backed backend caching belong to separate PRs.

@@ -19,13 +19,13 @@ public sealed class RabbitMqNotificationWorker(
     private IConnection? _connection;
     private IModel? _channel;
 
-    protected override Task ExecuteAsync(CancellationToken stoppingToken)
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         var connectionString = configuration.GetConnectionString("RabbitMQ");
         if (string.IsNullOrWhiteSpace(connectionString))
         {
             logger.LogWarning("RabbitMQ connection string is not configured. Notification worker is idle.");
-            return Task.CompletedTask;
+            return;
         }
 
         var queueName = options.Value.QueueName;
@@ -35,7 +35,34 @@ public sealed class RabbitMqNotificationWorker(
             DispatchConsumersAsync = true
         };
 
-        _connection = factory.CreateConnection();
+        while (!stoppingToken.IsCancellationRequested)
+        {
+            try
+            {
+                _connection = factory.CreateConnection();
+                break;
+            }
+            catch (Exception ex) when (!stoppingToken.IsCancellationRequested)
+            {
+                logger.LogWarning(
+                    "RabbitMQ is not ready. Notification worker will retry in 5 seconds. Reason: {Reason}",
+                    ex.Message);
+                try
+                {
+                    await Task.Delay(TimeSpan.FromSeconds(5), stoppingToken);
+                }
+                catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+                {
+                    return;
+                }
+            }
+        }
+
+        if (_connection is null)
+        {
+            return;
+        }
+
         _channel = _connection.CreateModel();
         _channel.QueueDeclare(queue: queueName, durable: true, exclusive: false, autoDelete: false);
         _channel.BasicQos(prefetchSize: 0, prefetchCount: 1, global: false);
@@ -66,7 +93,14 @@ public sealed class RabbitMqNotificationWorker(
         _channel.BasicConsume(queue: queueName, autoAck: false, consumer: consumer);
         logger.LogInformation("RabbitMQ notification worker is consuming queue {QueueName}.", queueName);
 
-        return Task.Delay(Timeout.InfiniteTimeSpan, stoppingToken);
+        try
+        {
+            await Task.Delay(Timeout.InfiniteTimeSpan, stoppingToken);
+        }
+        catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+        {
+            // Normal host shutdown.
+        }
     }
 
     public override void Dispose()

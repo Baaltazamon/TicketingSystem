@@ -1,0 +1,14 @@
+**/bin/
+**/obj/
+
+.git/
+.github/
+.vs/
+.vscode/
+
+artifacts/
+local-files/
+
+.env
+*.user
+*.suo

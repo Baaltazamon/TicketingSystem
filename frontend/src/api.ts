@@ -1,4 +1,13 @@
-import type { AuthResponse, HealthStatus, TicketListItem, UserProfile } from "./types";
+import type {
+  AuthResponse,
+  CreateTicketInput,
+  HealthStatus,
+  TicketCategory,
+  TicketDetail,
+  TicketListItem,
+  TicketQuery,
+  UserProfile
+} from "./types";
 
 const API_ROOT = "/api";
 const TOKEN_STORAGE_KEY = "supportpilot.token";
@@ -35,8 +44,80 @@ export async function getReadiness(): Promise<HealthStatus> {
   return (await response.text()) as HealthStatus;
 }
 
-export async function getTickets(token: string): Promise<TicketListItem[]> {
-  return request<TicketListItem[]>("/tickets", { token });
+export async function getTickets(token: string, query: TicketQuery = {}): Promise<TicketListItem[]> {
+  return request<TicketListItem[]>(`/tickets${toQueryString(query)}`, { token });
+}
+
+export async function getTicket(token: string, ticketId: string): Promise<TicketDetail> {
+  return request<TicketDetail>(`/tickets/${ticketId}`, { token });
+}
+
+export async function createTicket(token: string, input: CreateTicketInput): Promise<{ id: string; number: string }> {
+  return request<{ id: string; number: string }>("/tickets", {
+    method: "POST",
+    token,
+    body: JSON.stringify(input)
+  });
+}
+
+export async function updateTicketStatus(
+  token: string,
+  ticketId: string,
+  status: number,
+  reason: string | null
+): Promise<void> {
+  await request<void>(`/tickets/${ticketId}/status`, {
+    method: "PATCH",
+    token,
+    body: JSON.stringify({ status, reason })
+  });
+}
+
+export async function assignTicket(token: string, ticketId: string, assignedToId: string | null): Promise<void> {
+  await request<void>(`/tickets/${ticketId}/assignee`, {
+    method: "PATCH",
+    token,
+    body: JSON.stringify({ assignedToId })
+  });
+}
+
+export async function addTicketComment(
+  token: string,
+  ticketId: string,
+  body: string,
+  isInternal: boolean
+): Promise<void> {
+  await request<void>(`/tickets/${ticketId}/comments`, {
+    method: "POST",
+    token,
+    body: JSON.stringify({ body, isInternal })
+  });
+}
+
+export async function uploadTicketAttachment(token: string, ticketId: string, file: File): Promise<{ id: string }> {
+  const form = new FormData();
+  form.append("file", file);
+
+  return request<{ id: string }>(`/tickets/${ticketId}/attachments`, {
+    method: "POST",
+    token,
+    body: form
+  });
+}
+
+export async function deleteTicketAttachment(token: string, ticketId: string, attachmentId: string): Promise<void> {
+  await request<void>(`/tickets/${ticketId}/attachments/${attachmentId}`, {
+    method: "DELETE",
+    token
+  });
+}
+
+export async function getTicketCategories(token: string): Promise<TicketCategory[]> {
+  return request<TicketCategory[]>("/tickets/categories", { token });
+}
+
+export async function getUsers(token: string): Promise<UserProfile[]> {
+  return request<UserProfile[]>("/admin/users", { token });
 }
 
 type RequestOptions = RequestInit & {
@@ -47,7 +128,7 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
   const headers = new Headers(options.headers);
   headers.set("Accept", "application/json");
 
-  if (options.body && !headers.has("Content-Type")) {
+  if (options.body && !(options.body instanceof FormData) && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
   }
 
@@ -70,6 +151,21 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
   }
 
   return (await response.json()) as T;
+}
+
+function toQueryString(query: TicketQuery): string {
+  const params = new URLSearchParams();
+
+  Object.entries(query).forEach(([key, value]) => {
+    if (value === undefined || value === null || value === "") {
+      return;
+    }
+
+    params.set(key, String(value));
+  });
+
+  const serialized = params.toString();
+  return serialized ? `?${serialized}` : "";
 }
 
 async function readErrorMessage(response: Response): Promise<string | null> {

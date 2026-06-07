@@ -427,6 +427,314 @@ h2 {
   color: var(--ink-muted);
 }
 
+.tickets-workspace {
+  display: grid;
+  grid-template-columns: minmax(20rem, 0.85fr) minmax(0, 1.45fr);
+  gap: 1.2rem;
+}
+
+.tickets-left,
+.tickets-right,
+.ticket-detail-card,
+.workflow-panel,
+.detail-section,
+.create-ticket-panel {
+  display: grid;
+  gap: 1rem;
+}
+
+.tickets-toolbar,
+.create-ticket-panel,
+.ticket-detail-card,
+.workflow-panel,
+.detail-section,
+.notice {
+  border: 1px solid var(--line);
+  border-radius: 1.4rem;
+  background: rgba(255, 250, 240, 0.68);
+}
+
+.tickets-toolbar,
+.create-ticket-panel,
+.ticket-detail-card,
+.workflow-panel,
+.detail-section,
+.notice {
+  padding: 1rem;
+}
+
+.tickets-toolbar {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.8rem;
+}
+
+.tickets-toolbar label,
+.ticket-form label,
+.workflow-grid label {
+  display: grid;
+  gap: 0.4rem;
+  color: var(--ink-muted);
+  font-weight: 700;
+}
+
+.tickets-toolbar input,
+.tickets-toolbar select,
+.ticket-form input,
+.ticket-form select,
+.ticket-form textarea,
+.workflow-grid input,
+.workflow-grid select,
+.comment-form textarea {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 0.9rem;
+  padding: 0.75rem 0.85rem;
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.68);
+}
+
+.ticket-form textarea,
+.comment-form textarea {
+  min-height: 7rem;
+  resize: vertical;
+}
+
+.filter-flags {
+  display: flex;
+  grid-column: 1 / -1;
+  flex-wrap: wrap;
+  gap: 0.8rem;
+}
+
+.filter-flags label,
+.comment-actions label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.tickets-toolbar button,
+.secondary-action,
+.ticket-form button,
+.workflow-panel button,
+.comment-actions button,
+.attachment-actions button {
+  border: 0;
+  border-radius: 999px;
+  padding: 0.75rem 1rem;
+  color: var(--paper-strong);
+  font-weight: 800;
+  background: var(--moss-deep);
+}
+
+.tickets-toolbar button {
+  grid-column: 1 / -1;
+}
+
+.secondary-action {
+  justify-self: start;
+  background: var(--blue);
+}
+
+.helper-text,
+.notice,
+.ticket-number,
+.fact span,
+.comment-card small,
+.attachment-card small,
+.timeline-item small,
+.timeline-item span {
+  color: var(--ink-muted);
+}
+
+.notice-error {
+  color: var(--rust);
+  font-weight: 800;
+}
+
+.ticket-queue {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.queue-item {
+  display: grid;
+  gap: 0.45rem;
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 1.2rem;
+  padding: 1rem;
+  color: var(--ink);
+  text-align: left;
+  background: rgba(255, 255, 255, 0.48);
+}
+
+.queue-item-active {
+  border-color: rgba(40, 77, 64, 0.6);
+  background: rgba(184, 243, 212, 0.42);
+  box-shadow: 8px 8px 0 rgba(40, 77, 64, 0.12);
+}
+
+.queue-meta,
+.detail-badges,
+.comment-actions,
+.attachment-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 0.28rem 0.65rem;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.badge-neutral {
+  color: var(--moss-deep);
+  background: rgba(40, 77, 64, 0.12);
+}
+
+.badge-status {
+  color: #164a35;
+  background: rgba(184, 243, 212, 0.76);
+}
+
+.badge-danger {
+  color: #6f2e1b;
+  background: rgba(183, 93, 59, 0.18);
+}
+
+.detail-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.detail-header h2 {
+  margin-top: 0.35rem;
+  font-size: clamp(1.8rem, 4vw, 3rem);
+}
+
+.detail-header p {
+  color: var(--ink-muted);
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.fact {
+  border: 1px solid var(--line);
+  border-radius: 1rem;
+  padding: 0.8rem;
+  background: rgba(255, 255, 255, 0.46);
+}
+
+.fact span,
+.fact strong {
+  display: block;
+}
+
+.workflow-panel h3,
+.detail-section h3 {
+  margin: 0;
+  font-family: "Space Grotesk", sans-serif;
+}
+
+.workflow-grid {
+  display: grid;
+  grid-template-columns: minmax(10rem, 0.8fr) minmax(0, 1fr) auto;
+  gap: 0.75rem;
+  align-items: end;
+}
+
+.workflow-grid + .workflow-grid {
+  grid-template-columns: minmax(10rem, 1fr) auto;
+}
+
+.comment-form {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.comment-actions {
+  align-items: center;
+  justify-content: space-between;
+}
+
+.comment-list,
+.attachment-list,
+.timeline {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.comment-card,
+.attachment-card,
+.timeline-item {
+  border: 1px solid var(--line);
+  border-radius: 1rem;
+  padding: 0.85rem;
+  background: rgba(255, 255, 255, 0.44);
+}
+
+.comment-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.5rem;
+}
+
+.comment-card p {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
+.comment-internal {
+  border-color: rgba(183, 93, 59, 0.34);
+  background: rgba(240, 177, 90, 0.14);
+}
+
+.file-drop {
+  display: block;
+  border: 1px dashed rgba(40, 77, 64, 0.45);
+  border-radius: 1rem;
+  padding: 1rem;
+  color: var(--moss-deep);
+  font-weight: 800;
+  text-align: center;
+  background: rgba(184, 243, 212, 0.22);
+}
+
+.file-drop input {
+  display: none;
+}
+
+.attachment-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.attachment-actions button:last-child {
+  background: var(--rust);
+}
+
+.timeline-item {
+  display: grid;
+  grid-template-columns: 7rem minmax(0, 1fr) auto;
+  gap: 0.75rem;
+  align-items: center;
+}
+
 @keyframes lift-in {
   from {
     opacity: 0;
@@ -452,7 +760,9 @@ h2 {
 
   .nav-list,
   .hero-grid,
-  .view-grid {
+  .view-grid,
+  .tickets-workspace,
+  .detail-grid {
     grid-template-columns: 1fr;
   }
 }
@@ -477,5 +787,17 @@ h2 {
 
   .ticket-row {
     grid-template-columns: 1fr;
+  }
+
+  .tickets-toolbar,
+  .workflow-grid,
+  .workflow-grid + .workflow-grid,
+  .timeline-item {
+    grid-template-columns: 1fr;
+  }
+
+  .detail-header,
+  .attachment-card {
+    flex-direction: column;
   }
 }

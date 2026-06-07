@@ -8,6 +8,8 @@ import {
   login,
   storeToken
 } from "./api";
+import { TicketsScreen } from "./TicketsScreen";
+import { isOpenStatus } from "./ticketFormat";
 import type { HealthStatus, TicketListItem, UserProfile } from "./types";
 
 type ViewKey = "dashboard" | "tickets" | "knowledge-base" | "admin";
@@ -244,7 +246,7 @@ function AppShell({
         </header>
         <main className="content-panel">
           {activeView === "dashboard" ? <DashboardPreview token={token} /> : null}
-          {activeView === "tickets" ? <TicketsPreview token={token} /> : null}
+          {activeView === "tickets" ? <TicketsScreen token={token} user={user} /> : null}
           {activeView === "knowledge-base" ? <KnowledgeBasePreview /> : null}
           {activeView === "admin" ? <AdminPreview user={user} /> : null}
         </main>
@@ -292,65 +294,6 @@ function DashboardPreview({ token }: { token: string }) {
           "Current cards intentionally stay light to avoid mixing modules."
         ]}
       />
-    </section>
-  );
-}
-
-function TicketsPreview({ token }: { token: string }) {
-  const [tickets, setTickets] = useState<TicketListItem[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    let isActive = true;
-
-    getTickets(token)
-      .then((items) => {
-        if (isActive) {
-          setTickets(items.slice(0, 5));
-        }
-      })
-      .catch(() => {
-        if (isActive) {
-          setTickets([]);
-        }
-      })
-      .finally(() => {
-        if (isActive) {
-          setIsLoading(false);
-        }
-      });
-
-    return () => {
-      isActive = false;
-    };
-  }, [token]);
-
-  return (
-    <section className="stack">
-      <RoadmapPanel
-        title="Tickets module boundary"
-        items={[
-          "This shell proves authenticated ticket reads.",
-          "Filters, creation, detail timeline, comments and attachments move to feature/frontend-tickets.",
-          "The table below is a thin preview, not the final queue UX."
-        ]}
-      />
-      <div className="table-card">
-        <div className="table-header">
-          <h2>Recent tickets</h2>
-          <span>{isLoading ? "Loading..." : `${tickets.length} shown`}</span>
-        </div>
-        <div className="ticket-list">
-          {tickets.map((ticket) => (
-            <article key={ticket.id} className="ticket-row">
-              <span>{ticket.number}</span>
-              <strong>{ticket.title}</strong>
-              <small>{formatStatus(ticket.status)} / {formatPriority(ticket.priority)}</small>
-            </article>
-          ))}
-          {!isLoading && tickets.length === 0 ? <p className="empty-state">No tickets yet.</p> : null}
-        </div>
-      </div>
     </section>
   );
 }
@@ -408,36 +351,4 @@ function RoadmapPanel({ title, items }: { title: string; items: string[] }) {
 
 function currentTitle(view: ViewKey): string {
   return navItems.find((item) => item.key === view)?.label ?? "SupportPilot";
-}
-
-function isOpenStatus(status: TicketListItem["status"]): boolean {
-  return ![3, 4, 5, "Resolved", "Closed", "Cancelled"].includes(status);
-}
-
-function formatStatus(status: TicketListItem["status"]): string {
-  const labels: Record<number, string> = {
-    0: "New",
-    1: "In Progress",
-    2: "Waiting for Customer",
-    3: "Resolved",
-    4: "Closed",
-    5: "Cancelled"
-  };
-
-  return typeof status === "number" ? labels[status] ?? String(status) : splitPascalCase(status);
-}
-
-function formatPriority(priority: TicketListItem["priority"]): string {
-  const labels: Record<number, string> = {
-    0: "Low",
-    1: "Normal",
-    2: "High",
-    3: "Critical"
-  };
-
-  return typeof priority === "number" ? labels[priority] ?? String(priority) : splitPascalCase(priority);
-}
-
-function splitPascalCase(value: string): string {
-  return value.replace(/([a-z])([A-Z])/g, "$1 $2");
 }

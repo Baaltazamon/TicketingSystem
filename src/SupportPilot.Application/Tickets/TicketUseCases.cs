@@ -8,12 +8,22 @@ using SupportPilot.Domain;
 
 namespace SupportPilot.Application.Tickets;
 
+/// <summary>
+/// Ticket workflow use cases used by the API layer.
+/// </summary>
 public sealed class TicketUseCases(
     ISupportPilotDbContext db,
     IFileStorage fileStorage,
     ITicketRealtimeNotifier realtimeNotifier,
     INotificationPublisher notificationPublisher)
 {
+    /// <summary>
+    /// Lists tickets visible to the current actor with optional support filters.
+    /// </summary>
+    /// <param name="query">Ticket query filters.</param>
+    /// <param name="actor">Current actor authorization context.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>At most 100 visible tickets ordered by recent activity.</returns>
     public async Task<IReadOnlyList<TicketListItemResponse>> ListAsync(
         TicketQuery query,
         TicketActor actor,
@@ -101,6 +111,13 @@ public sealed class TicketUseCases(
             .ToList();
     }
 
+    /// <summary>
+    /// Creates a new ticket and initializes SLA deadlines from the active priority policy.
+    /// </summary>
+    /// <param name="request">Ticket creation request.</param>
+    /// <param name="actor">Current actor authorization context.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>Created ticket identifier and number, or validation error.</returns>
     public async Task<ApplicationResult<TicketCreatedResponse>> CreateAsync(
         CreateTicketRequest request,
         TicketActor actor,
@@ -145,6 +162,13 @@ public sealed class TicketUseCases(
         return ApplicationResult<TicketCreatedResponse>.Success(new TicketCreatedResponse(ticket.Id, ticket.Number));
     }
 
+    /// <summary>
+    /// Loads full ticket details, including comments, attachments, and timeline visible to the actor.
+    /// </summary>
+    /// <param name="id">Ticket identifier.</param>
+    /// <param name="actor">Current actor authorization context.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>Ticket details, not found, or forbidden result.</returns>
     public async Task<ApplicationResult<TicketDetailResponse>> GetDetailsAsync(
         Guid id,
         TicketActor actor,
@@ -164,6 +188,14 @@ public sealed class TicketUseCases(
         return ApplicationResult<TicketDetailResponse>.Success(ToDetail(ticket, actor));
     }
 
+    /// <summary>
+    /// Changes ticket status according to workflow and actor permissions.
+    /// </summary>
+    /// <param name="id">Ticket identifier.</param>
+    /// <param name="request">Requested status transition.</param>
+    /// <param name="actor">Current actor authorization context.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>Success or a normalized application error.</returns>
     public async Task<ApplicationResult> ChangeStatusAsync(
         Guid id,
         UpdateTicketStatusRequest request,
@@ -231,6 +263,14 @@ public sealed class TicketUseCases(
         return ApplicationResult.Success();
     }
 
+    /// <summary>
+    /// Assigns or unassigns a ticket to a support user.
+    /// </summary>
+    /// <param name="id">Ticket identifier.</param>
+    /// <param name="request">Assignment request.</param>
+    /// <param name="actor">Current actor authorization context.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>Success or a normalized application error.</returns>
     public async Task<ApplicationResult> AssignAsync(
         Guid id,
         AssignTicketRequest request,
@@ -279,6 +319,14 @@ public sealed class TicketUseCases(
         return ApplicationResult.Success();
     }
 
+    /// <summary>
+    /// Adds a public comment or internal note to a ticket.
+    /// </summary>
+    /// <param name="id">Ticket identifier.</param>
+    /// <param name="request">Comment request.</param>
+    /// <param name="actor">Current actor authorization context.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>Success or a normalized application error.</returns>
     public async Task<ApplicationResult> AddCommentAsync(
         Guid id,
         CreateCommentRequest request,
@@ -330,6 +378,16 @@ public sealed class TicketUseCases(
         return ApplicationResult.Success();
     }
 
+    /// <summary>
+    /// Stores an attachment file and links its metadata to a ticket.
+    /// </summary>
+    /// <param name="id">Ticket identifier.</param>
+    /// <param name="fileName">Original file name.</param>
+    /// <param name="contentType">MIME content type.</param>
+    /// <param name="content">Attachment content stream.</param>
+    /// <param name="actor">Current actor authorization context.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>Created attachment identifier or a normalized application error.</returns>
     public async Task<ApplicationResult<TicketAttachmentCreatedResponse>> UploadAttachmentAsync(
         Guid id,
         string fileName,
@@ -368,6 +426,14 @@ public sealed class TicketUseCases(
         return ApplicationResult<TicketAttachmentCreatedResponse>.Success(new TicketAttachmentCreatedResponse(attachment.Id));
     }
 
+    /// <summary>
+    /// Deletes an attachment metadata record and removes the object from configured file storage.
+    /// </summary>
+    /// <param name="ticketId">Ticket identifier.</param>
+    /// <param name="attachmentId">Attachment identifier.</param>
+    /// <param name="actor">Current actor authorization context.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>Success or a normalized application error.</returns>
     public async Task<ApplicationResult> DeleteAttachmentAsync(
         Guid ticketId,
         Guid attachmentId,

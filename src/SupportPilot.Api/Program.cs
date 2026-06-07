@@ -57,6 +57,22 @@ builder.Services.AddSwaggerGen(options =>
         Version = "v1",
         Description = "Система обращений в поддержку с SLA, комментариями, вложениями и базой знаний."
     });
+
+    foreach (var xmlFile in new[]
+    {
+        "SupportPilot.Api.xml",
+        "SupportPilot.Contracts.xml",
+        "SupportPilot.Domain.xml",
+        "SupportPilot.Application.xml"
+    })
+    {
+        var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
+        if (File.Exists(xmlPath))
+        {
+            options.IncludeXmlComments(xmlPath);
+        }
+    }
+
     options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
         Name = "Authorization",
@@ -131,4 +147,7 @@ app.MapHealthChecks("/api/health/live", new HealthCheckOptions
 
 app.Run();
 
+/// <summary>
+/// API entry point type exposed for integration tests and WebApplicationFactory.
+/// </summary>
 public partial class Program;

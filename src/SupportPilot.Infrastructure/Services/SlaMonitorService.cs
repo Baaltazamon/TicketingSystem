@@ -10,13 +10,22 @@ public sealed class SlaMonitorService(IServiceScopeFactory scopeFactory, ILogger
     {
         using var timer = new PeriodicTimer(TimeSpan.FromMinutes(1));
 
-        while (!stoppingToken.IsCancellationRequested && await timer.WaitForNextTickAsync(stoppingToken))
+        while (!stoppingToken.IsCancellationRequested)
         {
             try
             {
+                if (!await timer.WaitForNextTickAsync(stoppingToken))
+                {
+                    break;
+                }
+
                 using var scope = scopeFactory.CreateScope();
                 var processor = scope.ServiceProvider.GetRequiredService<SlaBreachProcessor>();
                 await processor.CheckSlaAsync(stoppingToken);
+            }
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+            {
+                break;
             }
             catch (Exception ex)
             {

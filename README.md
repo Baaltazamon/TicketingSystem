@@ -113,6 +113,29 @@ dotnet publish src/SupportPilot.Api/SupportPilot.Api.csproj -c Release -o artifa
 Get-ChildItem artifacts/api -Filter *.xml
 ```
 
+## Frontend Shell
+
+The React frontend lives in `frontend/`.
+
+Local development:
+
+```powershell
+cd frontend
+npm install
+npm run dev
+```
+
+The dev server runs on `http://localhost:5173` and proxies `/api` plus `/hubs` to the backend. By default it targets `http://localhost:5295`.
+
+Use Docker API instead:
+
+```powershell
+$env:SUPPORTPILOT_API_TARGET="http://localhost:8080"
+npm run dev
+```
+
+Current frontend scope is intentionally limited to shell concerns: login, JWT session persistence, protected layout, health indicator and placeholders for the upcoming ticket, dashboard realtime and knowledge base/admin PRs.
+
 ## Docker Compose
 
 Скопируйте `.env.example` в `.env` при необходимости и запустите:

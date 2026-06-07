@@ -1,0 +1,481 @@
+@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap");
+
+:root {
+  --ink: #11231f;
+  --ink-muted: #62706b;
+  --paper: #f4efe4;
+  --paper-strong: #fffaf0;
+  --line: rgba(17, 35, 31, 0.14);
+  --moss: #284d40;
+  --moss-deep: #17362d;
+  --mint: #b8f3d4;
+  --amber: #f0b15a;
+  --rust: #b75d3b;
+  --blue: #356a8a;
+  --shadow: 0 24px 70px rgba(28, 45, 38, 0.18);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  color: var(--ink);
+  font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+  background:
+    radial-gradient(circle at top left, rgba(184, 243, 212, 0.54), transparent 33rem),
+    radial-gradient(circle at bottom right, rgba(240, 177, 90, 0.36), transparent 28rem),
+    linear-gradient(135deg, #efe4cf 0%, #f8f3e9 48%, #ddebdc 100%);
+}
+
+button,
+input {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+.boot-screen,
+.login-page {
+  min-height: 100vh;
+}
+
+.boot-screen {
+  display: grid;
+  place-items: center;
+  gap: 1rem;
+  align-content: center;
+}
+
+.boot-mark,
+.brand-mark {
+  display: grid;
+  place-items: center;
+  color: var(--paper-strong);
+  font-family: "Space Grotesk", sans-serif;
+  font-weight: 700;
+  background: var(--moss-deep);
+  box-shadow: 8px 8px 0 var(--amber);
+}
+
+.boot-mark {
+  width: 5.5rem;
+  height: 5.5rem;
+  border-radius: 1.7rem;
+  font-size: 1.8rem;
+  animation: lift-in 480ms ease-out both;
+}
+
+.login-page {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(24rem, 0.75fr);
+  gap: clamp(1.5rem, 4vw, 4rem);
+  align-items: center;
+  padding: clamp(1rem, 4vw, 4rem);
+}
+
+.login-hero,
+.login-panel,
+.content-panel,
+.roadmap-panel,
+.metric-card,
+.table-card {
+  border: 1px solid var(--line);
+  background: rgba(255, 250, 240, 0.74);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(20px);
+}
+
+.login-hero {
+  position: relative;
+  overflow: hidden;
+  padding: clamp(2rem, 6vw, 5rem);
+  border-radius: 2.5rem;
+}
+
+.login-hero::after {
+  position: absolute;
+  right: -5rem;
+  bottom: -5rem;
+  width: 18rem;
+  height: 18rem;
+  border: 2rem solid rgba(40, 77, 64, 0.1);
+  border-radius: 50%;
+  content: "";
+}
+
+.eyebrow {
+  color: var(--rust);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+h1,
+h2 {
+  margin: 0;
+  font-family: "Space Grotesk", sans-serif;
+  letter-spacing: -0.04em;
+}
+
+.login-hero h1 {
+  max-width: 13ch;
+  margin-top: 1rem;
+  font-size: clamp(3.1rem, 8vw, 7.4rem);
+  line-height: 0.9;
+}
+
+.login-hero p {
+  max-width: 42rem;
+  color: var(--ink-muted);
+  font-size: clamp(1.05rem, 2vw, 1.3rem);
+}
+
+.hero-grid,
+.view-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+  margin-top: 2rem;
+}
+
+.metric-card {
+  padding: 1.2rem;
+  border-radius: 1.4rem;
+}
+
+.metric-card span,
+.metric-card small {
+  display: block;
+  color: var(--ink-muted);
+}
+
+.metric-card strong {
+  display: block;
+  margin: 0.35rem 0;
+  color: var(--moss-deep);
+  font-family: "Space Grotesk", sans-serif;
+  font-size: clamp(1.7rem, 4vw, 3rem);
+}
+
+.login-panel {
+  padding: 2rem;
+  border-radius: 2rem;
+}
+
+.panel-header,
+.sidebar-footer,
+.user-card {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.panel-header {
+  color: var(--ink-muted);
+  font-size: 0.9rem;
+}
+
+.status-dot {
+  width: 0.72rem;
+  height: 0.72rem;
+  border-radius: 999px;
+  background: var(--rust);
+}
+
+.status-healthy {
+  background: #28a36a;
+}
+
+.status-degraded {
+  background: var(--amber);
+}
+
+.login-panel h2 {
+  margin-top: 1.3rem;
+  font-size: 2.3rem;
+}
+
+.login-form {
+  display: grid;
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
+.login-form label {
+  display: grid;
+  gap: 0.45rem;
+  color: var(--ink-muted);
+  font-weight: 700;
+}
+
+.login-form input {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 1rem;
+  outline: none;
+  padding: 0.95rem 1rem;
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.68);
+}
+
+.login-form input:focus {
+  border-color: var(--moss);
+  box-shadow: 0 0 0 4px rgba(184, 243, 212, 0.7);
+}
+
+.login-form button,
+.user-card button {
+  border: 0;
+  border-radius: 999px;
+  color: var(--paper-strong);
+  background: var(--moss-deep);
+}
+
+.login-form button {
+  padding: 1rem 1.2rem;
+  font-weight: 800;
+}
+
+.login-form button:disabled {
+  cursor: progress;
+  opacity: 0.72;
+}
+
+.form-error {
+  margin: 0;
+  color: var(--rust);
+  font-weight: 700;
+}
+
+.app-shell {
+  display: grid;
+  grid-template-columns: 20rem minmax(0, 1fr);
+  min-height: 100vh;
+}
+
+.sidebar {
+  display: flex;
+  position: sticky;
+  top: 0;
+  flex-direction: column;
+  height: 100vh;
+  padding: 1.3rem;
+  color: var(--paper-strong);
+  background:
+    linear-gradient(150deg, rgba(23, 54, 45, 0.98), rgba(17, 35, 31, 0.96)),
+    radial-gradient(circle at 10% 10%, rgba(184, 243, 212, 0.2), transparent 16rem);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+}
+
+.brand-mark {
+  width: 3rem;
+  height: 3rem;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 1rem;
+  box-shadow: 5px 5px 0 var(--amber);
+}
+
+.brand small,
+.user-card small,
+.nav-item small {
+  display: block;
+}
+
+.brand small,
+.nav-item small,
+.sidebar-footer {
+  color: rgba(255, 250, 240, 0.64);
+}
+
+.nav-list {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 2rem;
+}
+
+.nav-item {
+  width: 100%;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 1.2rem;
+  padding: 0.9rem;
+  color: inherit;
+  text-align: left;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.nav-item-active {
+  color: var(--ink);
+  background: var(--mint);
+}
+
+.nav-item-active small {
+  color: rgba(17, 35, 31, 0.68);
+}
+
+.sidebar-footer {
+  margin-top: auto;
+}
+
+.workspace {
+  padding: clamp(1rem, 3vw, 2rem);
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.topbar h1 {
+  font-size: clamp(2.1rem, 5vw, 4.5rem);
+}
+
+.user-card {
+  padding: 0.7rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(255, 250, 240, 0.76);
+}
+
+.user-card button {
+  padding: 0.65rem 1rem;
+}
+
+.content-panel {
+  min-height: calc(100vh - 9rem);
+  margin-top: 1.5rem;
+  padding: clamp(1rem, 3vw, 2rem);
+  border-radius: 2rem;
+}
+
+.view-grid {
+  align-items: stretch;
+}
+
+.view-grid .roadmap-panel {
+  grid-column: 1 / -1;
+}
+
+.stack {
+  display: grid;
+  gap: 1.2rem;
+}
+
+.roadmap-panel,
+.table-card {
+  padding: 1.3rem;
+  border-radius: 1.5rem;
+}
+
+.roadmap-panel h2,
+.table-card h2 {
+  font-size: 1.6rem;
+}
+
+.roadmap-panel ul {
+  display: grid;
+  gap: 0.75rem;
+  margin: 1rem 0 0;
+  padding-left: 1.2rem;
+  color: var(--ink-muted);
+}
+
+.table-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.table-header span,
+.empty-state {
+  color: var(--ink-muted);
+}
+
+.ticket-list {
+  display: grid;
+  gap: 0.65rem;
+  margin-top: 1rem;
+}
+
+.ticket-row {
+  display: grid;
+  grid-template-columns: 8rem minmax(0, 1fr) auto;
+  gap: 1rem;
+  align-items: center;
+  padding: 0.9rem;
+  border: 1px solid var(--line);
+  border-radius: 1rem;
+  background: rgba(255, 255, 255, 0.46);
+}
+
+.ticket-row span,
+.ticket-row small {
+  color: var(--ink-muted);
+}
+
+@keyframes lift-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.8rem) scale(0.96);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (max-width: 980px) {
+  .login-page,
+  .app-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    position: static;
+    height: auto;
+  }
+
+  .nav-list,
+  .hero-grid,
+  .view-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .login-page,
+  .workspace,
+  .sidebar {
+    padding: 1rem;
+  }
+
+  .topbar,
+  .user-card,
+  .table-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .user-card {
+    border-radius: 1.3rem;
+  }
+
+  .ticket-row {
+    grid-template-columns: 1fr;
+  }
+}

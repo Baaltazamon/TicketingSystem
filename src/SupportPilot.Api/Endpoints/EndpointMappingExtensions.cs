@@ -11,8 +11,16 @@ using SupportPilot.Infrastructure.Data;
 
 namespace SupportPilot.Api.Endpoints;
 
+/// <summary>
+/// Defines the HTTP endpoint groups exposed by the SupportPilot API.
+/// </summary>
 public static class EndpointMappingExtensions
 {
+    /// <summary>
+    /// Maps authentication endpoints for registration, login and the current user profile.
+    /// </summary>
+    /// <param name="app">The web application to extend.</param>
+    /// <returns>The same web application instance so endpoint mapping can be chained.</returns>
     public static WebApplication MapAuthEndpoints(this WebApplication app)
     {
         var group = app.MapGroup("/api/auth").WithTags("Auth");
@@ -49,6 +57,11 @@ public static class EndpointMappingExtensions
         return app;
     }
 
+    /// <summary>
+    /// Maps ticket endpoints for listing, creation, details, workflow changes, comments and attachments.
+    /// </summary>
+    /// <param name="app">The web application to extend.</param>
+    /// <returns>The same web application instance so endpoint mapping can be chained.</returns>
     public static WebApplication MapTicketEndpoints(this WebApplication app)
     {
         var group = app.MapGroup("/api/tickets").WithTags("Tickets").RequireAuthorization();
@@ -200,6 +213,11 @@ public static class EndpointMappingExtensions
         return app;
     }
 
+    /// <summary>
+    /// Maps administrative endpoints for users, ticket categories, SLA policies and audit log access.
+    /// </summary>
+    /// <param name="app">The web application to extend.</param>
+    /// <returns>The same web application instance so endpoint mapping can be chained.</returns>
     public static WebApplication MapAdminEndpoints(this WebApplication app)
     {
         var group = app.MapGroup("/api/admin").WithTags("Admin").RequireAuthorization("AdminOnly");
@@ -297,6 +315,11 @@ public static class EndpointMappingExtensions
         return app;
     }
 
+    /// <summary>
+    /// Maps knowledge base endpoints for public article browsing and support-staff article management.
+    /// </summary>
+    /// <param name="app">The web application to extend.</param>
+    /// <returns>The same web application instance so endpoint mapping can be chained.</returns>
     public static WebApplication MapKnowledgeBaseEndpoints(this WebApplication app)
     {
         var group = app.MapGroup("/api/kb").WithTags("KnowledgeBase");
@@ -388,6 +411,11 @@ public static class EndpointMappingExtensions
         return app;
     }
 
+    /// <summary>
+    /// Maps reporting endpoints for support staff operational dashboards.
+    /// </summary>
+    /// <param name="app">The web application to extend.</param>
+    /// <returns>The same web application instance so endpoint mapping can be chained.</returns>
     public static WebApplication MapReportEndpoints(this WebApplication app)
     {
         var group = app.MapGroup("/api/reports").WithTags("Reports").RequireAuthorization("SupportStaff");
@@ -413,6 +441,11 @@ public static class EndpointMappingExtensions
         return app;
     }
 
+    /// <summary>
+    /// Maps notification endpoints for reading user notifications and marking them as read.
+    /// </summary>
+    /// <param name="app">The web application to extend.</param>
+    /// <returns>The same web application instance so endpoint mapping can be chained.</returns>
     public static WebApplication MapNotificationEndpoints(this WebApplication app)
     {
         var group = app.MapGroup("/api/notifications").WithTags("Notifications").RequireAuthorization();

@@ -5,11 +5,20 @@ using SupportPilot.Domain;
 
 namespace SupportPilot.Application.Auth;
 
+/// <summary>
+/// Authentication and registration use cases.
+/// </summary>
 public sealed class AuthUseCases(
     IUserAccountStore users,
     IPasswordHasher passwordHasher,
     ITokenService tokenService)
 {
+    /// <summary>
+    /// Registers a new customer account.
+    /// </summary>
+    /// <param name="request">Registration request.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>Created user profile, or a conflict result when the email is already registered.</returns>
     public async Task<ApplicationResult<UserProfileResponse>> RegisterAsync(
         RegisterRequest request,
         CancellationToken cancellationToken = default)
@@ -46,6 +55,12 @@ public sealed class AuthUseCases(
         return ApplicationResult<UserProfileResponse>.Success(ToProfile(user));
     }
 
+    /// <summary>
+    /// Authenticates an active user and creates a JWT access token.
+    /// </summary>
+    /// <param name="request">Login request.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>Authentication response, or unauthorized result when credentials are invalid.</returns>
     public async Task<ApplicationResult<AuthResponse>> LoginAsync(
         LoginRequest request,
         CancellationToken cancellationToken = default)
@@ -62,6 +77,12 @@ public sealed class AuthUseCases(
         return ApplicationResult<AuthResponse>.Success(new AuthResponse(tokenService.CreateToken(user), ToProfile(user)));
     }
 
+    /// <summary>
+    /// Returns the current authenticated user profile.
+    /// </summary>
+    /// <param name="userId">Authenticated user identifier from the security principal.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>User profile, or unauthorized result when the user does not exist.</returns>
     public async Task<ApplicationResult<UserProfileResponse>> GetCurrentUserAsync(
         Guid userId,
         CancellationToken cancellationToken = default)

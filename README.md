@@ -88,6 +88,31 @@ password: Admin123!
 - SQLite + Local storage: локальная разработка через `dotnet run`.
 - PostgreSQL + MinIO: Docker/production-like профиль через `docker compose`.
 
+## XML Documentation
+
+The main public API surface generates XML documentation during build and publish:
+
+- `SupportPilot.Api`
+- `SupportPilot.Application`
+- `SupportPilot.Contracts`
+- `SupportPilot.Domain`
+- `SupportPilot.Notifications.Worker`
+
+Swagger includes XML comments from API, Contracts, Domain and Application assemblies when the files are present in the application output directory. This documents endpoint groups, auth/ticket use cases, request/response DTOs, domain entities, enums and application ports.
+
+Build output location:
+
+```text
+src/{ProjectName}/bin/{Configuration}/net8.0/{ProjectName}.xml
+```
+
+Publish output can be checked with:
+
+```powershell
+dotnet publish src/SupportPilot.Api/SupportPilot.Api.csproj -c Release -o artifacts/api
+Get-ChildItem artifacts/api -Filter *.xml
+```
+
 ## Docker Compose
 
 Скопируйте `.env.example` в `.env` при необходимости и запустите:

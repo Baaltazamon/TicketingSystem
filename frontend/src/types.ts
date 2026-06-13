@@ -135,3 +135,44 @@ export type DashboardOverview = {
   recentTickets: DashboardTicket[];
   slaBreaches: DashboardTicket[];
 };
+
+export type KnowledgeBaseCategory = {
+  id: string;
+  name: string;
+  description?: string | null;
+  articleCount: number;
+};
+
+export type KnowledgeBaseArticleListItem = {
+  id: string;
+  title: string;
+  slug: string;
+  categoryId: string;
+  category: string;
+  isPublished: boolean;
+  updatedAt: string;
+};
+
+export type KnowledgeBaseArticle = KnowledgeBaseArticleListItem & {
+  body: string;
+  createdAt: string;
+};
+
+export type KnowledgeBaseArticleQuery = {
+  search?: string;
+  categoryId?: string;
+  published?: boolean | "";
+};
+
+export type UpsertKnowledgeBaseCategoryInput = {
+  name: string;
+  description?: string | null;
+};
+
+export type UpsertKnowledgeBaseArticleInput = {
+  categoryId: string;
+  title: string;
+  slug: string;
+  body: string;
+  isPublished: boolean;
+};

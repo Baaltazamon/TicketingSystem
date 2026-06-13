@@ -208,3 +208,54 @@ public sealed record DashboardTicketResponse(
     DateTimeOffset? ResolutionDueAt,
     bool FirstResponseBreached,
     bool ResolutionBreached);
+
+/// <summary>
+/// Knowledge base category returned by public and admin article screens.
+/// </summary>
+/// <param name="Id">Category identifier.</param>
+/// <param name="Name">Category name.</param>
+/// <param name="Description">Optional category description.</param>
+/// <param name="ArticleCount">Number of articles in the category for the current endpoint scope.</param>
+public sealed record KnowledgeBaseCategoryResponse(Guid Id, string Name, string? Description, int ArticleCount);
+
+/// <summary>
+/// Compact knowledge base article returned by list endpoints.
+/// </summary>
+/// <param name="Id">Article identifier.</param>
+/// <param name="Title">Article title.</param>
+/// <param name="Slug">URL-friendly article slug.</param>
+/// <param name="CategoryId">Category identifier.</param>
+/// <param name="Category">Category name.</param>
+/// <param name="IsPublished">Whether customers can read the article.</param>
+/// <param name="UpdatedAt">UTC timestamp when the article was last updated.</param>
+public sealed record KnowledgeBaseArticleListItemResponse(
+    Guid Id,
+    string Title,
+    string Slug,
+    Guid CategoryId,
+    string Category,
+    bool IsPublished,
+    DateTimeOffset UpdatedAt);
+
+/// <summary>
+/// Full knowledge base article returned by detail and admin endpoints.
+/// </summary>
+/// <param name="Id">Article identifier.</param>
+/// <param name="Title">Article title.</param>
+/// <param name="Slug">URL-friendly article slug.</param>
+/// <param name="Body">Article body.</param>
+/// <param name="CategoryId">Category identifier.</param>
+/// <param name="Category">Category name.</param>
+/// <param name="IsPublished">Whether customers can read the article.</param>
+/// <param name="CreatedAt">UTC timestamp when the article was created.</param>
+/// <param name="UpdatedAt">UTC timestamp when the article was last updated.</param>
+public sealed record KnowledgeBaseArticleResponse(
+    Guid Id,
+    string Title,
+    string Slug,
+    string Body,
+    Guid CategoryId,
+    string Category,
+    bool IsPublished,
+    DateTimeOffset CreatedAt,
+    DateTimeOffset UpdatedAt);

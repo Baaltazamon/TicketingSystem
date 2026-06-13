@@ -55,6 +55,8 @@ The frontend currently contains:
 - status and assignment controls for support users;
 - public comments and internal notes;
 - attachment upload, download and deletion;
-- navigation placeholders for knowledge base and admin.
+- knowledge base article search and reading;
+- support-staff knowledge base category management;
+- support-staff draft editing and publishing.
 
-Knowledge base administration and Redis-backed backend caching belong to separate PRs.
+Redis-backed backend caching belongs to a separate PR.

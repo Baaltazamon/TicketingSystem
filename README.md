@@ -134,7 +134,7 @@ $env:SUPPORTPILOT_API_TARGET="http://localhost:8080"
 npm run dev
 ```
 
-Current frontend scope includes login, JWT session persistence, protected layout, health indicator, realtime dashboard and ticket workflows: filters, creation, details, comments, internal notes and attachments. Knowledge base/admin screens and Redis-backed backend caching are planned as separate PRs.
+Current frontend scope includes login, JWT session persistence, protected layout, health indicator, realtime dashboard, ticket workflows and knowledge base workflows: public article search/reading, support-staff category management, draft editing and publishing.
 
 ## Docker Compose
 
@@ -245,7 +245,16 @@ Infrastructure содержит реализации портов:
 - `POST /api/tickets/{id}/attachments`
 - `GET /api/tickets/{ticketId}/attachments/{attachmentId}`
 - `DELETE /api/tickets/{ticketId}/attachments/{attachmentId}`
+- `GET /api/kb/categories`
 - `GET /api/kb/articles?search=...`
+- `GET /api/kb/articles/{slug}`
+- `GET /api/kb/admin/categories`
+- `POST /api/kb/admin/categories`
+- `PUT /api/kb/admin/categories/{id}`
+- `GET /api/kb/admin/articles`
+- `GET /api/kb/admin/articles/{id}`
+- `POST /api/kb/admin/articles`
+- `PUT /api/kb/admin/articles/{id}`
 - `GET /api/reports/overview`
 - `GET /api/admin/audit`
 
@@ -261,4 +270,3 @@ dotnet publish src/SupportPilot.Notifications.Worker/SupportPilot.Notifications.
 ## Следующие технические шаги
 
 - Добавить Redis cache для базы знаний и отчетов.
-- Добавить React/Blazor frontend после восстановления доступа к `node.exe`.

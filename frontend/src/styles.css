@@ -630,6 +630,221 @@ h2 {
   font-weight: 800;
 }
 
+.kb-shell {
+  display: grid;
+  gap: 1.2rem;
+}
+
+.kb-hero,
+.kb-sidebar,
+.kb-reader,
+.kb-admin,
+.kb-admin-panel {
+  border: 1px solid var(--line);
+  background: rgba(255, 250, 240, 0.68);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(18px);
+}
+
+.kb-hero {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  overflow: hidden;
+  position: relative;
+  padding: clamp(1.4rem, 4vw, 2.6rem);
+  border-radius: 2rem;
+}
+
+.kb-hero::after {
+  position: absolute;
+  right: -3rem;
+  bottom: -5rem;
+  width: 17rem;
+  height: 17rem;
+  border: 2rem solid rgba(240, 177, 90, 0.14);
+  border-radius: 50%;
+  content: "";
+}
+
+.kb-hero h2 {
+  max-width: 13ch;
+  margin-top: 0.65rem;
+  font-size: clamp(2.2rem, 6vw, 4.8rem);
+  line-height: 0.92;
+}
+
+.kb-hero p,
+.kb-reader small,
+.kb-article-card span,
+.kb-article-card small,
+.kb-category-list small,
+.kb-admin-list small {
+  color: var(--ink-muted);
+}
+
+.kb-stats {
+  display: grid;
+  position: relative;
+  z-index: 1;
+  min-width: 10rem;
+  border: 1px solid var(--line);
+  border-radius: 1.4rem;
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.kb-stats strong {
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 3rem;
+  line-height: 1;
+}
+
+.kb-layout {
+  display: grid;
+  grid-template-columns: minmax(18rem, 0.75fr) minmax(0, 1.6fr);
+  gap: 1rem;
+}
+
+.kb-sidebar,
+.kb-reader,
+.kb-admin,
+.kb-admin-panel {
+  border-radius: 1.4rem;
+  padding: 1rem;
+}
+
+.kb-sidebar,
+.kb-search,
+.kb-category-list,
+.kb-content,
+.kb-article-list,
+.kb-admin,
+.kb-admin-panel,
+.kb-form,
+.kb-admin-list {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.kb-search label,
+.kb-form label {
+  display: grid;
+  gap: 0.4rem;
+  color: var(--ink-muted);
+  font-weight: 700;
+}
+
+.kb-search input,
+.kb-search select,
+.kb-filter-row input,
+.kb-filter-row select,
+.kb-form input,
+.kb-form select,
+.kb-form textarea {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 0.9rem;
+  padding: 0.75rem 0.85rem;
+  color: var(--ink);
+  font: inherit;
+  background: rgba(255, 255, 255, 0.68);
+}
+
+.kb-search button,
+.kb-admin header button,
+.kb-filter-row button,
+.kb-form button {
+  border: 0;
+  border-radius: 999px;
+  padding: 0.75rem 1rem;
+  color: var(--paper-strong);
+  font-weight: 800;
+  background: var(--moss-deep);
+}
+
+.kb-category-list button,
+.kb-article-card,
+.kb-admin-list button {
+  display: grid;
+  gap: 0.35rem;
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 1rem;
+  padding: 0.85rem;
+  color: var(--ink);
+  text-align: left;
+  background: rgba(255, 255, 255, 0.44);
+}
+
+.kb-article-card-active {
+  border-color: rgba(40, 77, 64, 0.58);
+  background: rgba(184, 243, 212, 0.4);
+  box-shadow: 7px 7px 0 rgba(40, 77, 64, 0.1);
+}
+
+.kb-reader {
+  min-height: 24rem;
+}
+
+.kb-reader h2 {
+  margin-top: 0.5rem;
+  font-size: clamp(1.9rem, 4vw, 3.3rem);
+}
+
+.kb-body {
+  display: grid;
+  gap: 0.9rem;
+  margin-top: 1rem;
+  color: var(--ink);
+  line-height: 1.65;
+}
+
+.kb-body p {
+  margin: 0;
+}
+
+.kb-admin header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.kb-admin header h2,
+.kb-admin-panel h3 {
+  margin: 0;
+  font-family: "Space Grotesk", sans-serif;
+}
+
+.kb-admin-grid {
+  display: grid;
+  grid-template-columns: minmax(16rem, 0.8fr) minmax(16rem, 0.8fr) minmax(20rem, 1.25fr);
+  gap: 1rem;
+}
+
+.kb-filter-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 9rem auto;
+  gap: 0.65rem;
+}
+
+.kb-body-input {
+  min-height: 16rem;
+  resize: vertical;
+}
+
+.kb-checkbox {
+  display: flex !important;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.kb-checkbox input {
+  width: auto;
+}
+
 .tickets-workspace {
   display: grid;
   grid-template-columns: minmax(20rem, 0.85fr) minmax(0, 1.45fr);
@@ -966,6 +1181,8 @@ h2 {
   .view-grid,
   .dashboard-grid,
   .dashboard-metrics,
+  .kb-layout,
+  .kb-admin-grid,
   .tickets-workspace,
   .detail-grid {
     grid-template-columns: 1fr;
@@ -1003,6 +1220,8 @@ h2 {
 
   .detail-header,
   .dashboard-hero,
+  .kb-hero,
+  .kb-admin header,
   .pulse-item,
   .attachment-card {
     flex-direction: column;
@@ -1010,6 +1229,10 @@ h2 {
 
   .dashboard-hero {
     display: grid;
+  }
+
+  .kb-filter-row {
+    grid-template-columns: 1fr;
   }
 
   .pulse-item {

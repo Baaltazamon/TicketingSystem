@@ -3,10 +3,16 @@ import type {
   CreateTicketInput,
   DashboardOverview,
   HealthStatus,
+  KnowledgeBaseArticle,
+  KnowledgeBaseArticleListItem,
+  KnowledgeBaseArticleQuery,
+  KnowledgeBaseCategory,
   TicketCategory,
   TicketDetail,
   TicketListItem,
   TicketQuery,
+  UpsertKnowledgeBaseArticleInput,
+  UpsertKnowledgeBaseCategoryInput,
   UserProfile
 } from "./types";
 
@@ -123,6 +129,81 @@ export async function getUsers(token: string): Promise<UserProfile[]> {
 
 export async function getDashboardOverview(token: string): Promise<DashboardOverview> {
   return request<DashboardOverview>("/reports/overview", { token });
+}
+
+export async function getKnowledgeBaseCategories(): Promise<KnowledgeBaseCategory[]> {
+  return request<KnowledgeBaseCategory[]>("/kb/categories");
+}
+
+export async function getKnowledgeBaseArticles(
+  query: KnowledgeBaseArticleQuery = {}
+): Promise<KnowledgeBaseArticleListItem[]> {
+  return request<KnowledgeBaseArticleListItem[]>(`/kb/articles${toQueryString(query)}`);
+}
+
+export async function getKnowledgeBaseArticle(slug: string): Promise<KnowledgeBaseArticle> {
+  return request<KnowledgeBaseArticle>(`/kb/articles/${encodeURIComponent(slug)}`);
+}
+
+export async function getAdminKnowledgeBaseCategories(token: string): Promise<KnowledgeBaseCategory[]> {
+  return request<KnowledgeBaseCategory[]>("/kb/admin/categories", { token });
+}
+
+export async function createAdminKnowledgeBaseCategory(
+  token: string,
+  input: UpsertKnowledgeBaseCategoryInput
+): Promise<KnowledgeBaseCategory> {
+  return request<KnowledgeBaseCategory>("/kb/admin/categories", {
+    method: "POST",
+    token,
+    body: JSON.stringify(input)
+  });
+}
+
+export async function updateAdminKnowledgeBaseCategory(
+  token: string,
+  categoryId: string,
+  input: UpsertKnowledgeBaseCategoryInput
+): Promise<KnowledgeBaseCategory> {
+  return request<KnowledgeBaseCategory>(`/kb/admin/categories/${categoryId}`, {
+    method: "PUT",
+    token,
+    body: JSON.stringify(input)
+  });
+}
+
+export async function getAdminKnowledgeBaseArticles(
+  token: string,
+  query: KnowledgeBaseArticleQuery = {}
+): Promise<KnowledgeBaseArticleListItem[]> {
+  return request<KnowledgeBaseArticleListItem[]>(`/kb/admin/articles${toQueryString(query)}`, { token });
+}
+
+export async function getAdminKnowledgeBaseArticle(token: string, articleId: string): Promise<KnowledgeBaseArticle> {
+  return request<KnowledgeBaseArticle>(`/kb/admin/articles/${articleId}`, { token });
+}
+
+export async function createAdminKnowledgeBaseArticle(
+  token: string,
+  input: UpsertKnowledgeBaseArticleInput
+): Promise<KnowledgeBaseArticle> {
+  return request<KnowledgeBaseArticle>("/kb/admin/articles", {
+    method: "POST",
+    token,
+    body: JSON.stringify(input)
+  });
+}
+
+export async function updateAdminKnowledgeBaseArticle(
+  token: string,
+  articleId: string,
+  input: UpsertKnowledgeBaseArticleInput
+): Promise<KnowledgeBaseArticle> {
+  return request<KnowledgeBaseArticle>(`/kb/admin/articles/${articleId}`, {
+    method: "PUT",
+    token,
+    body: JSON.stringify(input)
+  });
 }
 
 type RequestOptions = RequestInit & {

@@ -96,6 +96,69 @@ public sealed class ApiIntegrationTests(SupportPilotApiFactory factory) : IClass
     }
 
     [Fact]
+    public async Task KnowledgeBaseAdminCanCreateDraftAndPublishArticle()
+    {
+        var admin = await CreateAuthenticatedClientAsync();
+        var slug = $"kb-{Guid.NewGuid():N}";
+
+        var categoryResponse = await admin.PostAsJsonAsync("/api/kb/admin/categories", new
+        {
+            name = $"KB {Guid.NewGuid():N}",
+            description = "Integration test category"
+        });
+        Assert.Equal(HttpStatusCode.Created, categoryResponse.StatusCode);
+        using var categoryJson = await JsonDocument.ParseAsync(await categoryResponse.Content.ReadAsStreamAsync());
+        var categoryId = categoryJson.RootElement.GetProperty("id").GetGuid();
+
+        var draftResponse = await admin.PostAsJsonAsync("/api/kb/admin/articles", new
+        {
+            categoryId,
+            title = "Draft article",
+            slug,
+            body = "Draft body",
+            isPublished = false
+        });
+        Assert.Equal(HttpStatusCode.Created, draftResponse.StatusCode);
+        using var draftJson = await JsonDocument.ParseAsync(await draftResponse.Content.ReadAsStreamAsync());
+        var articleId = draftJson.RootElement.GetProperty("id").GetGuid();
+        Assert.False(draftJson.RootElement.GetProperty("isPublished").GetBoolean());
+
+        var hiddenDraft = await factory.CreateClient().GetAsync($"/api/kb/articles/{slug}");
+        Assert.Equal(HttpStatusCode.NotFound, hiddenDraft.StatusCode);
+
+        var adminDetails = await admin.GetAsync($"/api/kb/admin/articles/{articleId}");
+        adminDetails.EnsureSuccessStatusCode();
+        using var adminDetailsJson = await JsonDocument.ParseAsync(await adminDetails.Content.ReadAsStreamAsync());
+        Assert.Equal("Draft body", adminDetailsJson.RootElement.GetProperty("body").GetString());
+
+        var publishResponse = await admin.PutAsJsonAsync($"/api/kb/admin/articles/{articleId}", new
+        {
+            categoryId,
+            title = "Published article",
+            slug,
+            body = "Published body",
+            isPublished = true
+        });
+        publishResponse.EnsureSuccessStatusCode();
+
+        var publicArticle = await factory.CreateClient().GetAsync($"/api/kb/articles/{slug}");
+        publicArticle.EnsureSuccessStatusCode();
+        using var publicJson = await JsonDocument.ParseAsync(await publicArticle.Content.ReadAsStreamAsync());
+        Assert.Equal("Published article", publicJson.RootElement.GetProperty("title").GetString());
+        Assert.True(publicJson.RootElement.GetProperty("isPublished").GetBoolean());
+    }
+
+    [Fact]
+    public async Task KnowledgeBaseAdminRequiresSupportStaff()
+    {
+        var customer = await CreateAuthenticatedClientAsync("kb-customer");
+
+        var response = await customer.GetAsync("/api/kb/admin/articles");
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
     public async Task AuditEndpointOrdersAndLimitsRowsInSqliteMode()
     {
         var client = await CreateAuthenticatedClientAsync();

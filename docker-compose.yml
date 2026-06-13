@@ -10,6 +10,10 @@ services:
       ConnectionStrings__PostgreSql: Host=postgres;Port=5432;Database=${POSTGRES_DB:-supportpilot};Username=${POSTGRES_USER:-supportpilot};Password=${POSTGRES_PASSWORD:-supportpilot}
       ConnectionStrings__Redis: redis:6379
       ConnectionStrings__RabbitMQ: amqp://${RABBITMQ_DEFAULT_USER:-guest}:${RABBITMQ_DEFAULT_PASS:-guest}@rabbitmq:5672/
+      Cache__Provider: Redis
+      Cache__DefaultExpirationSeconds: 300
+      Cache__KnowledgeBaseExpirationSeconds: 300
+      Cache__ReportsExpirationSeconds: 30
       FileStorage__Provider: Minio
       FileStorage__Endpoint: minio:9000
       FileStorage__AccessKey: ${MINIO_ROOT_USER:-supportpilot}

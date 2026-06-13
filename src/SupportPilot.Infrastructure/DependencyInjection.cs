@@ -24,6 +24,7 @@ public static class DependencyInjection
         services.Configure<FileStorageOptions>(configuration.GetSection(FileStorageOptions.SectionName));
         services.Configure<DatabaseOptions>(configuration.GetSection(DatabaseOptions.SectionName));
         services.Configure<NotificationOptions>(configuration.GetSection(NotificationOptions.SectionName));
+        services.Configure<CacheOptions>(configuration.GetSection(CacheOptions.SectionName));
 
         var databaseProvider = configuration.GetSection(DatabaseOptions.SectionName).Get<DatabaseOptions>()?.Provider ?? "Sqlite";
         services.AddDbContext<SupportPilotDbContext>(options =>
@@ -47,6 +48,8 @@ public static class DependencyInjection
         services.AddScoped<ITokenService>(provider => provider.GetRequiredService<JwtTokenService>());
         services.AddScoped<IPasswordHasher, AspNetPasswordHasher>();
         services.AddScoped<IUserAccountStore, UserAccountStore>();
+        services.AddSingleton<IApplicationCache, DistributedApplicationCache>();
+        services.AddApplicationCache(configuration);
         services.AddScoped<DatabaseNotificationPublisher>();
         services.AddScoped<RabbitMqNotificationPublisher>();
         services.AddScoped<NotificationInbox>();
@@ -95,6 +98,35 @@ public static class DependencyInjection
         if (registrationOptions.EnableHealthChecks)
         {
             services.AddInfrastructureHealthChecks(configuration);
+        }
+
+        return services;
+    }
+
+    private static IServiceCollection AddApplicationCache(this IServiceCollection services, IConfiguration configuration)
+    {
+        var options = configuration.GetSection(CacheOptions.SectionName).Get<CacheOptions>() ?? new CacheOptions();
+        if (options.Provider.Equals("Redis", StringComparison.OrdinalIgnoreCase))
+        {
+            var redisConnectionString = configuration.GetConnectionString("Redis");
+            if (string.IsNullOrWhiteSpace(redisConnectionString))
+            {
+                throw new InvalidOperationException("Redis cache provider requires ConnectionStrings:Redis.");
+            }
+
+            services.AddStackExchangeRedisCache(redisOptions =>
+            {
+                redisOptions.Configuration = redisConnectionString;
+                redisOptions.InstanceName = "supportpilot:";
+            });
+        }
+        else if (options.Provider.Equals("Memory", StringComparison.OrdinalIgnoreCase))
+        {
+            services.AddDistributedMemoryCache();
+        }
+        else
+        {
+            throw new InvalidOperationException($"Unsupported cache provider '{options.Provider}'.");
         }
 
         return services;

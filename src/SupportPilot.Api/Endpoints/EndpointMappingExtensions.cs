@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using SupportPilot.Application.Abstractions;
 using SupportPilot.Application.Auth;
 using SupportPilot.Application.Common;
@@ -8,6 +9,7 @@ using SupportPilot.Api.Auth;
 using SupportPilot.Contracts;
 using SupportPilot.Domain;
 using SupportPilot.Infrastructure.Data;
+using SupportPilot.Infrastructure.Services;
 
 namespace SupportPilot.Api.Endpoints;
 
@@ -87,9 +89,15 @@ public static class EndpointMappingExtensions
             CreateTicketRequest request,
             CurrentUser currentUser,
             TicketUseCases tickets,
+            IApplicationCache cache,
             CancellationToken cancellationToken) =>
         {
             var result = await tickets.CreateAsync(request, currentUser.ToTicketActor(), cancellationToken);
+            if (result.IsSuccess)
+            {
+                await cache.InvalidateGroupAsync(CacheGroups.Reports, cancellationToken);
+            }
+
             return result.IsSuccess
                 ? Results.Created($"/api/tickets/{result.Value!.Id}", result.Value)
                 : ToHttpResult(result);
@@ -110,9 +118,15 @@ public static class EndpointMappingExtensions
             UpdateTicketStatusRequest request,
             CurrentUser currentUser,
             TicketUseCases tickets,
+            IApplicationCache cache,
             CancellationToken cancellationToken) =>
         {
             var result = await tickets.ChangeStatusAsync(id, request, currentUser.ToTicketActor(), cancellationToken);
+            if (result.IsSuccess)
+            {
+                await cache.InvalidateGroupAsync(CacheGroups.Reports, cancellationToken);
+            }
+
             return ToHttpResult(result);
         });
 
@@ -121,9 +135,15 @@ public static class EndpointMappingExtensions
             AssignTicketRequest request,
             CurrentUser currentUser,
             TicketUseCases tickets,
+            IApplicationCache cache,
             CancellationToken cancellationToken) =>
         {
             var result = await tickets.AssignAsync(id, request, currentUser.ToTicketActor(), cancellationToken);
+            if (result.IsSuccess)
+            {
+                await cache.InvalidateGroupAsync(CacheGroups.Reports, cancellationToken);
+            }
+
             return ToHttpResult(result);
         }).RequireAuthorization("SupportStaff");
 
@@ -132,9 +152,15 @@ public static class EndpointMappingExtensions
             CreateCommentRequest request,
             CurrentUser currentUser,
             TicketUseCases tickets,
+            IApplicationCache cache,
             CancellationToken cancellationToken) =>
         {
             var result = await tickets.AddCommentAsync(id, request, currentUser.ToTicketActor(), cancellationToken);
+            if (result.IsSuccess)
+            {
+                await cache.InvalidateGroupAsync(CacheGroups.Reports, cancellationToken);
+            }
+
             return result.IsSuccess
                 ? Results.Created($"/api/tickets/{id}/comments", new { id })
                 : ToHttpResult(result);
@@ -145,6 +171,7 @@ public static class EndpointMappingExtensions
             HttpRequest request,
             CurrentUser currentUser,
             TicketUseCases tickets,
+            IApplicationCache cache,
             CancellationToken cancellationToken) =>
         {
             if (!request.HasFormContentType)
@@ -167,6 +194,10 @@ public static class EndpointMappingExtensions
                 fileStream,
                 currentUser.ToTicketActor(),
                 cancellationToken);
+            if (result.IsSuccess)
+            {
+                await cache.InvalidateGroupAsync(CacheGroups.Reports, cancellationToken);
+            }
 
             return result.IsSuccess
                 ? Results.Created($"/api/tickets/{id}/attachments/{result.Value!.Id}", result.Value)
@@ -211,9 +242,15 @@ public static class EndpointMappingExtensions
             Guid attachmentId,
             CurrentUser currentUser,
             TicketUseCases tickets,
+            IApplicationCache cache,
             CancellationToken cancellationToken) =>
         {
             var result = await tickets.DeleteAttachmentAsync(ticketId, attachmentId, currentUser.ToTicketActor(), cancellationToken);
+            if (result.IsSuccess)
+            {
+                await cache.InvalidateGroupAsync(CacheGroups.Reports, cancellationToken);
+            }
+
             return ToHttpResult(result);
         });
 
@@ -245,7 +282,11 @@ public static class EndpointMappingExtensions
         group.MapGet("/categories", async (SupportPilotDbContext db) =>
             Results.Ok(await db.TicketCategories.AsNoTracking().OrderBy(x => x.Name).ToListAsync()));
 
-        group.MapPost("/categories", async (UpsertCategoryRequest request, SupportPilotDbContext db) =>
+        group.MapPost("/categories", async (
+            UpsertCategoryRequest request,
+            SupportPilotDbContext db,
+            IApplicationCache cache,
+            CancellationToken cancellationToken) =>
         {
             var category = new TicketCategory
             {
@@ -254,13 +295,19 @@ public static class EndpointMappingExtensions
                 IsActive = request.IsActive
             };
             db.TicketCategories.Add(category);
-            await db.SaveChangesAsync();
+            await db.SaveChangesAsync(cancellationToken);
+            await cache.InvalidateGroupAsync(CacheGroups.Reports, cancellationToken);
             return Results.Created($"/api/admin/categories/{category.Id}", category);
         });
 
-        group.MapPut("/categories/{id:guid}", async (Guid id, UpsertCategoryRequest request, SupportPilotDbContext db) =>
+        group.MapPut("/categories/{id:guid}", async (
+            Guid id,
+            UpsertCategoryRequest request,
+            SupportPilotDbContext db,
+            IApplicationCache cache,
+            CancellationToken cancellationToken) =>
         {
-            var category = await db.TicketCategories.SingleOrDefaultAsync(x => x.Id == id);
+            var category = await db.TicketCategories.SingleOrDefaultAsync(x => x.Id == id, cancellationToken);
             if (category is null)
             {
                 return Results.NotFound();
@@ -269,7 +316,8 @@ public static class EndpointMappingExtensions
             category.Name = request.Name.Trim();
             category.Description = request.Description;
             category.IsActive = request.IsActive;
-            await db.SaveChangesAsync();
+            await db.SaveChangesAsync(cancellationToken);
+            await cache.InvalidateGroupAsync(CacheGroups.Reports, cancellationToken);
             return Results.Ok(category);
         });
 
@@ -331,64 +379,101 @@ public static class EndpointMappingExtensions
     {
         var group = app.MapGroup("/api/kb").WithTags("KnowledgeBase");
 
-        group.MapGet("/categories", async (SupportPilotDbContext db, CancellationToken cancellationToken) =>
-            Results.Ok(await db.KnowledgeBaseCategories
-                .AsNoTracking()
-                .OrderBy(x => x.Name)
-                .Select(x => new KnowledgeBaseCategoryResponse(
-                    x.Id,
-                    x.Name,
-                    x.Description,
-                    x.Articles.Count(article => article.IsPublished)))
-                .ToListAsync(cancellationToken)));
+        group.MapGet("/categories", async (
+            SupportPilotDbContext db,
+            IApplicationCache cache,
+            IOptions<CacheOptions> cacheOptions,
+            CancellationToken cancellationToken) =>
+            Results.Ok(await cache.GetOrCreateAsync(
+                CacheGroups.KnowledgeBase,
+                "categories",
+                KnowledgeBaseCacheExpiration(cacheOptions),
+                token => db.KnowledgeBaseCategories
+                    .AsNoTracking()
+                    .OrderBy(x => x.Name)
+                    .Select(x => new KnowledgeBaseCategoryResponse(
+                        x.Id,
+                        x.Name,
+                        x.Description,
+                        x.Articles.Count(article => article.IsPublished)))
+                    .ToListAsync(token),
+                cancellationToken)));
 
         group.MapGet("/articles", async (
             [FromQuery] string? search,
             [FromQuery] Guid? categoryId,
             SupportPilotDbContext db,
+            IApplicationCache cache,
+            IOptions<CacheOptions> cacheOptions,
             CancellationToken cancellationToken) =>
         {
-            var query = db.KnowledgeBaseArticles
-                .AsNoTracking()
-                .Include(x => x.Category)
-                .Where(x => x.IsPublished)
-                .AsQueryable();
+            var normalizedSearch = search?.Trim();
+            var cacheKey = $"articles:search={normalizedSearch?.ToLowerInvariant() ?? "all"}:category={categoryId?.ToString("N") ?? "all"}";
+            var articles = await cache.GetOrCreateAsync(
+                CacheGroups.KnowledgeBase,
+                cacheKey,
+                KnowledgeBaseCacheExpiration(cacheOptions),
+                token =>
+                {
+                    var query = db.KnowledgeBaseArticles
+                        .AsNoTracking()
+                        .Include(x => x.Category)
+                        .Where(x => x.IsPublished)
+                        .AsQueryable();
 
-            if (!string.IsNullOrWhiteSpace(search))
-            {
-                query = query.Where(x => x.Title.Contains(search) || x.Body.Contains(search));
-            }
+                    if (!string.IsNullOrWhiteSpace(normalizedSearch))
+                    {
+                        query = query.Where(x => x.Title.Contains(normalizedSearch) || x.Body.Contains(normalizedSearch));
+                    }
 
-            if (categoryId.HasValue)
-            {
-                query = query.Where(x => x.CategoryId == categoryId.Value);
-            }
+                    if (categoryId.HasValue)
+                    {
+                        query = query.Where(x => x.CategoryId == categoryId.Value);
+                    }
 
-            var articles = await query
-                .OrderBy(x => x.Title)
-                .Select(x => new KnowledgeBaseArticleListItemResponse(
-                    x.Id,
-                    x.Title,
-                    x.Slug,
-                    x.CategoryId,
-                    x.Category.Name,
-                    x.IsPublished,
-                    x.UpdatedAt))
-                .ToListAsync(cancellationToken);
+                    return query
+                        .OrderBy(x => x.Title)
+                        .Select(x => new KnowledgeBaseArticleListItemResponse(
+                            x.Id,
+                            x.Title,
+                            x.Slug,
+                            x.CategoryId,
+                            x.Category.Name,
+                            x.IsPublished,
+                            x.UpdatedAt))
+                        .ToListAsync(token);
+                },
+                cancellationToken);
 
             return Results.Ok(articles);
         });
 
-        group.MapGet("/articles/{slug}", async (string slug, SupportPilotDbContext db, CancellationToken cancellationToken) =>
+        group.MapGet("/articles/{slug}", async (
+            string slug,
+            SupportPilotDbContext db,
+            IApplicationCache cache,
+            IOptions<CacheOptions> cacheOptions,
+            CancellationToken cancellationToken) =>
         {
-            var article = await db.KnowledgeBaseArticles
-                .AsNoTracking()
-                .Include(x => x.Category)
-                .SingleOrDefaultAsync(x => x.Slug == slug && x.IsPublished, cancellationToken);
+            var normalizedSlug = slug.Trim().ToLowerInvariant();
+            var article = await cache.GetOrCreateAsync(
+                CacheGroups.KnowledgeBase,
+                $"article:{normalizedSlug}",
+                KnowledgeBaseCacheExpiration(cacheOptions),
+                async token =>
+                {
+                    var entity = await db.KnowledgeBaseArticles
+                        .AsNoTracking()
+                        .Include(x => x.Category)
+                        .SingleOrDefaultAsync(x => x.Slug == normalizedSlug && x.IsPublished, token);
+
+                    return entity is null ? null : ToKnowledgeBaseArticleResponse(entity);
+                },
+                cancellationToken);
 
             return article is null
                 ? Results.NotFound()
-                : Results.Ok(ToKnowledgeBaseArticleResponse(article));
+                : Results.Ok(article);
         });
 
         var adminGroup = group.MapGroup("/admin").RequireAuthorization("SupportStaff");
@@ -407,11 +492,13 @@ public static class EndpointMappingExtensions
         adminGroup.MapPost("/categories", async (
             UpsertKnowledgeBaseCategoryRequest request,
             SupportPilotDbContext db,
+            IApplicationCache cache,
             CancellationToken cancellationToken) =>
         {
             var category = new KnowledgeBaseCategory { Name = request.Name.Trim(), Description = request.Description };
             db.KnowledgeBaseCategories.Add(category);
             await db.SaveChangesAsync(cancellationToken);
+            await cache.InvalidateGroupAsync(CacheGroups.KnowledgeBase, cancellationToken);
             return Results.Created(
                 $"/api/kb/admin/categories/{category.Id}",
                 new KnowledgeBaseCategoryResponse(category.Id, category.Name, category.Description, 0));
@@ -421,6 +508,7 @@ public static class EndpointMappingExtensions
             Guid id,
             UpsertKnowledgeBaseCategoryRequest request,
             SupportPilotDbContext db,
+            IApplicationCache cache,
             CancellationToken cancellationToken) =>
         {
             var category = await db.KnowledgeBaseCategories
@@ -434,6 +522,7 @@ public static class EndpointMappingExtensions
             category.Name = request.Name.Trim();
             category.Description = request.Description;
             await db.SaveChangesAsync(cancellationToken);
+            await cache.InvalidateGroupAsync(CacheGroups.KnowledgeBase, cancellationToken);
 
             return Results.Ok(new KnowledgeBaseCategoryResponse(
                 category.Id,
@@ -502,6 +591,7 @@ public static class EndpointMappingExtensions
         adminGroup.MapPost("/articles", async (
             UpsertKnowledgeBaseArticleRequest request,
             SupportPilotDbContext db,
+            IApplicationCache cache,
             CancellationToken cancellationToken) =>
         {
             var article = new KnowledgeBaseArticle
@@ -514,6 +604,7 @@ public static class EndpointMappingExtensions
             };
             db.KnowledgeBaseArticles.Add(article);
             await db.SaveChangesAsync(cancellationToken);
+            await cache.InvalidateGroupAsync(CacheGroups.KnowledgeBase, cancellationToken);
             var created = await db.KnowledgeBaseArticles
                 .AsNoTracking()
                 .Include(x => x.Category)
@@ -525,6 +616,7 @@ public static class EndpointMappingExtensions
             Guid id,
             UpsertKnowledgeBaseArticleRequest request,
             SupportPilotDbContext db,
+            IApplicationCache cache,
             CancellationToken cancellationToken) =>
         {
             var article = await db.KnowledgeBaseArticles.SingleOrDefaultAsync(x => x.Id == id, cancellationToken);
@@ -540,6 +632,7 @@ public static class EndpointMappingExtensions
             article.IsPublished = request.IsPublished;
             article.UpdatedAt = DateTimeOffset.UtcNow;
             await db.SaveChangesAsync(cancellationToken);
+            await cache.InvalidateGroupAsync(CacheGroups.KnowledgeBase, cancellationToken);
             var updated = await db.KnowledgeBaseArticles
                 .AsNoTracking()
                 .Include(x => x.Category)
@@ -559,108 +652,120 @@ public static class EndpointMappingExtensions
     {
         var group = app.MapGroup("/api/reports").WithTags("Reports").RequireAuthorization("SupportStaff");
 
-        group.MapGet("/overview", async (SupportPilotDbContext db, CancellationToken cancellationToken) =>
+        group.MapGet("/overview", async (
+            SupportPilotDbContext db,
+            IApplicationCache cache,
+            IOptions<CacheOptions> cacheOptions,
+            CancellationToken cancellationToken) =>
         {
-            var now = DateTimeOffset.UtcNow;
-            var dueSoon = now.AddHours(4);
-            var openStatuses = new[] { TicketStatus.New, TicketStatus.InProgress, TicketStatus.WaitingForCustomer };
-            var tickets = db.Tickets.AsNoTracking();
+            var result = await cache.GetOrCreateAsync(
+                CacheGroups.Reports,
+                "overview",
+                ReportsCacheExpiration(cacheOptions),
+                async token =>
+                {
+                    var now = DateTimeOffset.UtcNow;
+                    var dueSoon = now.AddHours(4);
+                    var openStatuses = new[] { TicketStatus.New, TicketStatus.InProgress, TicketStatus.WaitingForCustomer };
+                    var tickets = db.Tickets.AsNoTracking();
 
-            var byStatus = await tickets
-                .GroupBy(x => x.Status)
-                .Select(x => new DashboardBucketResponse(x.Key.ToString(), x.Count()))
-                .ToListAsync(cancellationToken);
-            var byPriority = await tickets
-                .GroupBy(x => x.Priority)
-                .Select(x => new DashboardBucketResponse(x.Key.ToString(), x.Count()))
-                .ToListAsync(cancellationToken);
-            var recentTickets = await db.Tickets
-                .FromSqlRaw("""
-                    SELECT *
-                    FROM "Tickets"
-                    ORDER BY "UpdatedAt" DESC
-                    LIMIT 8
-                    """)
-                .AsNoTracking()
-                .Include(x => x.Category)
-                .Include(x => x.AssignedTo)
-                .Select(x => new DashboardTicketResponse(
-                    x.Id,
-                    x.Number,
-                    x.Title,
-                    x.Status,
-                    x.Priority,
-                    x.Category.Name,
-                    x.AssignedTo == null ? null : x.AssignedTo.DisplayName,
-                    x.UpdatedAt,
-                    x.FirstResponseDueAt,
-                    x.ResolutionDueAt,
-                    x.FirstResponseBreached,
-                    x.ResolutionBreached))
-                .ToListAsync(cancellationToken);
-            var slaBreaches = await db.Tickets
-                .FromSqlRaw("""
-                    SELECT *
-                    FROM "Tickets"
-                    WHERE "FirstResponseBreached" OR "ResolutionBreached"
-                    ORDER BY "UpdatedAt" DESC
-                    LIMIT 8
-                    """)
-                .AsNoTracking()
-                .Include(x => x.Category)
-                .Include(x => x.AssignedTo)
-                .Select(x => new DashboardTicketResponse(
-                    x.Id,
-                    x.Number,
-                    x.Title,
-                    x.Status,
-                    x.Priority,
-                    x.Category.Name,
-                    x.AssignedTo == null ? null : x.AssignedTo.DisplayName,
-                    x.UpdatedAt,
-                    x.FirstResponseDueAt,
-                    x.ResolutionDueAt,
-                    x.FirstResponseBreached,
-                    x.ResolutionBreached))
-                .ToListAsync(cancellationToken);
-            var overdueTickets = await db.Database
-                .SqlQuery<int>($"""
-                    SELECT COUNT(*) AS "Value"
-                    FROM "Tickets"
-                    WHERE "Status" IN (0, 1, 2)
-                      AND (
-                          ("FirstResponseDueAt" IS NOT NULL AND "FirstResponseAt" IS NULL AND "FirstResponseDueAt" < {now})
-                          OR ("ResolutionDueAt" IS NOT NULL AND "ResolvedAt" IS NULL AND "ResolutionDueAt" < {now})
-                      )
-                    """)
-                .SingleAsync(cancellationToken);
-            var dueSoonTickets = await db.Database
-                .SqlQuery<int>($"""
-                    SELECT COUNT(*) AS "Value"
-                    FROM "Tickets"
-                    WHERE "Status" IN (0, 1, 2)
-                      AND (
-                          ("FirstResponseDueAt" IS NOT NULL AND "FirstResponseAt" IS NULL AND "FirstResponseDueAt" >= {now} AND "FirstResponseDueAt" <= {dueSoon})
-                          OR ("ResolutionDueAt" IS NOT NULL AND "ResolvedAt" IS NULL AND "ResolutionDueAt" >= {now} AND "ResolutionDueAt" <= {dueSoon})
-                      )
-                    """)
-                .SingleAsync(cancellationToken);
+                    var byStatus = await tickets
+                        .GroupBy(x => x.Status)
+                        .Select(x => new DashboardBucketResponse(x.Key.ToString(), x.Count()))
+                        .ToListAsync(token);
+                    var byPriority = await tickets
+                        .GroupBy(x => x.Priority)
+                        .Select(x => new DashboardBucketResponse(x.Key.ToString(), x.Count()))
+                        .ToListAsync(token);
+                    var recentTickets = await db.Tickets
+                        .FromSqlRaw("""
+                            SELECT *
+                            FROM "Tickets"
+                            ORDER BY "UpdatedAt" DESC
+                            LIMIT 8
+                            """)
+                        .AsNoTracking()
+                        .Include(x => x.Category)
+                        .Include(x => x.AssignedTo)
+                        .Select(x => new DashboardTicketResponse(
+                            x.Id,
+                            x.Number,
+                            x.Title,
+                            x.Status,
+                            x.Priority,
+                            x.Category.Name,
+                            x.AssignedTo == null ? null : x.AssignedTo.DisplayName,
+                            x.UpdatedAt,
+                            x.FirstResponseDueAt,
+                            x.ResolutionDueAt,
+                            x.FirstResponseBreached,
+                            x.ResolutionBreached))
+                        .ToListAsync(token);
+                    var slaBreaches = await db.Tickets
+                        .FromSqlRaw("""
+                            SELECT *
+                            FROM "Tickets"
+                            WHERE "FirstResponseBreached" OR "ResolutionBreached"
+                            ORDER BY "UpdatedAt" DESC
+                            LIMIT 8
+                            """)
+                        .AsNoTracking()
+                        .Include(x => x.Category)
+                        .Include(x => x.AssignedTo)
+                        .Select(x => new DashboardTicketResponse(
+                            x.Id,
+                            x.Number,
+                            x.Title,
+                            x.Status,
+                            x.Priority,
+                            x.Category.Name,
+                            x.AssignedTo == null ? null : x.AssignedTo.DisplayName,
+                            x.UpdatedAt,
+                            x.FirstResponseDueAt,
+                            x.ResolutionDueAt,
+                            x.FirstResponseBreached,
+                            x.ResolutionBreached))
+                        .ToListAsync(token);
+                    var overdueTickets = await db.Database
+                        .SqlQuery<int>($"""
+                            SELECT COUNT(*) AS "Value"
+                            FROM "Tickets"
+                            WHERE "Status" IN (0, 1, 2)
+                              AND (
+                                  ("FirstResponseDueAt" IS NOT NULL AND "FirstResponseAt" IS NULL AND "FirstResponseDueAt" < {now})
+                                  OR ("ResolutionDueAt" IS NOT NULL AND "ResolvedAt" IS NULL AND "ResolutionDueAt" < {now})
+                              )
+                            """)
+                        .SingleAsync(token);
+                    var dueSoonTickets = await db.Database
+                        .SqlQuery<int>($"""
+                            SELECT COUNT(*) AS "Value"
+                            FROM "Tickets"
+                            WHERE "Status" IN (0, 1, 2)
+                              AND (
+                                  ("FirstResponseDueAt" IS NOT NULL AND "FirstResponseAt" IS NULL AND "FirstResponseDueAt" >= {now} AND "FirstResponseDueAt" <= {dueSoon})
+                                  OR ("ResolutionDueAt" IS NOT NULL AND "ResolvedAt" IS NULL AND "ResolutionDueAt" >= {now} AND "ResolutionDueAt" <= {dueSoon})
+                              )
+                            """)
+                        .SingleAsync(token);
 
-            var result = new DashboardOverviewResponse(
-                now,
-                await tickets.CountAsync(cancellationToken),
-                await tickets.CountAsync(x => openStatuses.Contains(x.Status), cancellationToken),
-                await tickets.CountAsync(x => x.Status == TicketStatus.Resolved || x.Status == TicketStatus.Closed, cancellationToken),
-                await tickets.CountAsync(x => x.AssignedToId == null && openStatuses.Contains(x.Status), cancellationToken),
-                overdueTickets,
-                dueSoonTickets,
-                await tickets.CountAsync(x => x.FirstResponseBreached || x.ResolutionBreached, cancellationToken),
-                await tickets.CountAsync(x => openStatuses.Contains(x.Status) && x.Priority == TicketPriority.Critical, cancellationToken),
-                await tickets.CountAsync(x => openStatuses.Contains(x.Status) && x.Priority == TicketPriority.High, cancellationToken),
-                byStatus.OrderBy(x => x.Key).ToList(),
-                byPriority.OrderBy(x => x.Key).ToList(),
-                recentTickets,
-                slaBreaches);
+                    return new DashboardOverviewResponse(
+                        now,
+                        await tickets.CountAsync(token),
+                        await tickets.CountAsync(x => openStatuses.Contains(x.Status), token),
+                        await tickets.CountAsync(x => x.Status == TicketStatus.Resolved || x.Status == TicketStatus.Closed, token),
+                        await tickets.CountAsync(x => x.AssignedToId == null && openStatuses.Contains(x.Status), token),
+                        overdueTickets,
+                        dueSoonTickets,
+                        await tickets.CountAsync(x => x.FirstResponseBreached || x.ResolutionBreached, token),
+                        await tickets.CountAsync(x => openStatuses.Contains(x.Status) && x.Priority == TicketPriority.Critical, token),
+                        await tickets.CountAsync(x => openStatuses.Contains(x.Status) && x.Priority == TicketPriority.High, token),
+                        byStatus.OrderBy(x => x.Key).ToList(),
+                        byPriority.OrderBy(x => x.Key).ToList(),
+                        recentTickets,
+                        slaBreaches);
+                },
+                cancellationToken);
 
             return Results.Ok(result);
         });
@@ -738,6 +843,14 @@ public static class EndpointMappingExtensions
 
     private static bool CanReadTicket(CurrentUser currentUser, Ticket ticket) =>
         currentUser.IsInRole("Admin") || currentUser.IsInRole("Agent") || ticket.CreatedById == currentUser.Id;
+
+    private static TimeSpan KnowledgeBaseCacheExpiration(IOptions<CacheOptions> options) =>
+        TimeSpan.FromSeconds(NormalizeCacheSeconds(options.Value.KnowledgeBaseExpirationSeconds, 300));
+
+    private static TimeSpan ReportsCacheExpiration(IOptions<CacheOptions> options) =>
+        TimeSpan.FromSeconds(NormalizeCacheSeconds(options.Value.ReportsExpirationSeconds, 30));
+
+    private static int NormalizeCacheSeconds(int seconds, int fallback) => seconds > 0 ? seconds : fallback;
 
     private static UserProfileResponse ToProfile(User user) =>
         new(user.Id, user.Email, user.DisplayName, user.UserRoles.Select(x => x.Role.Name).Order().ToArray());

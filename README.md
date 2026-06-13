@@ -83,10 +83,33 @@ password: Admin123!
 }
 ```
 
+Провайдер application cache выбирается через конфиг:
+
+```json
+{
+  "Cache": {
+    "Provider": "Memory",
+    "KnowledgeBaseExpirationSeconds": 300,
+    "ReportsExpirationSeconds": 30
+  }
+}
+```
+
+или:
+
+```json
+{
+  "Cache": {
+    "Provider": "Redis"
+  }
+}
+```
+
 Режимы:
 
-- SQLite + Local storage: локальная разработка через `dotnet run`.
-- PostgreSQL + MinIO: Docker/production-like профиль через `docker compose`.
+- SQLite + Local storage + Memory cache: локальная разработка через `dotnet run`.
+- PostgreSQL + MinIO + Redis cache: Docker/production-like профиль через `docker compose`.
+- Кэшируются публичные ответы базы знаний и `/api/reports/overview`; write-операции сбрасывают соответствующие cache group.
 
 ## XML Documentation
 
@@ -144,12 +167,13 @@ Current frontend scope includes login, JWT session persistence, protected layout
 docker compose up --build
 ```
 
-Compose переключает API на PostgreSQL и MinIO:
+Compose переключает API на PostgreSQL, MinIO, RabbitMQ и Redis cache:
 
 ```text
 Database__Provider=PostgreSql
 FileStorage__Provider=Minio
 Notifications__Transport=RabbitMQ
+Cache__Provider=Redis
 ```
 
 Сервисы:
@@ -215,6 +239,7 @@ Application определяет порты:
 - `ITokenService` - выпуск access token.
 - `IFileStorage` - работа с файлами вложений.
 - `INotificationPublisher` - публикация уведомлений в локальную БД или RabbitMQ.
+- `IApplicationCache` - кэширование read-heavy application responses через Memory cache или Redis.
 
 Infrastructure содержит реализации портов:
 
@@ -225,6 +250,7 @@ Infrastructure содержит реализации портов:
 - `DatabaseNotificationPublisher` - локальный режим уведомлений без RabbitMQ.
 - `RabbitMqNotificationPublisher` - публикация notification-событий в очередь.
 - `RabbitMqNotificationWorker` - чтение очереди и сохранение уведомлений в БД.
+- `DistributedApplicationCache` - cache abstraction поверх `IDistributedCache`, локально memory-backed, в Docker Redis-backed.
 
 В локальном режиме API сохраняет уведомления напрямую в БД через `Notifications:Transport=Database`. В Docker/production-like режиме API публикует события в RabbitMQ через `Notifications:Transport=RabbitMQ`, а `SupportPilot.Notifications.Worker` сохраняет их в таблицу `Notifications`.
 
@@ -269,4 +295,4 @@ dotnet publish src/SupportPilot.Notifications.Worker/SupportPilot.Notifications.
 
 ## Следующие технические шаги
 
-- Добавить Redis cache для базы знаний и отчетов.
+- Расширить админку пользователями, ролями, категориями тикетов и SLA policies.

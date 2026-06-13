@@ -159,6 +159,52 @@ public sealed class ApiIntegrationTests(SupportPilotApiFactory factory) : IClass
     }
 
     [Fact]
+    public async Task KnowledgeBaseAdminChangesInvalidatePublicCache()
+    {
+        var admin = await CreateAuthenticatedClientAsync();
+        var publicClient = factory.CreateClient();
+        var categoryName = $"Cached KB {Guid.NewGuid():N}";
+
+        var firstPublicRead = await publicClient.GetAsync("/api/kb/categories");
+        firstPublicRead.EnsureSuccessStatusCode();
+
+        var createCategory = await admin.PostAsJsonAsync("/api/kb/admin/categories", new
+        {
+            name = categoryName,
+            description = "Cache invalidation category"
+        });
+        Assert.Equal(HttpStatusCode.Created, createCategory.StatusCode);
+
+        var secondPublicRead = await publicClient.GetAsync("/api/kb/categories");
+        secondPublicRead.EnsureSuccessStatusCode();
+        using var json = await JsonDocument.ParseAsync(await secondPublicRead.Content.ReadAsStreamAsync());
+
+        Assert.Contains(
+            json.RootElement.EnumerateArray(),
+            category => category.GetProperty("name").GetString() == categoryName);
+    }
+
+    [Fact]
+    public async Task TicketChangesInvalidateReportsCache()
+    {
+        var admin = await CreateAuthenticatedClientAsync();
+
+        var beforeCreate = await admin.GetAsync("/api/reports/overview");
+        beforeCreate.EnsureSuccessStatusCode();
+        using var beforeJson = await JsonDocument.ParseAsync(await beforeCreate.Content.ReadAsStreamAsync());
+        var beforeTotal = beforeJson.RootElement.GetProperty("totalTickets").GetInt32();
+
+        await CreateTicketAsync(admin, "Report cache invalidation ticket");
+
+        var afterCreate = await admin.GetAsync("/api/reports/overview");
+        afterCreate.EnsureSuccessStatusCode();
+        using var afterJson = await JsonDocument.ParseAsync(await afterCreate.Content.ReadAsStreamAsync());
+        var afterTotal = afterJson.RootElement.GetProperty("totalTickets").GetInt32();
+
+        Assert.Equal(beforeTotal + 1, afterTotal);
+    }
+
+    [Fact]
     public async Task AuditEndpointOrdersAndLimitsRowsInSqliteMode()
     {
         var client = await CreateAuthenticatedClientAsync();

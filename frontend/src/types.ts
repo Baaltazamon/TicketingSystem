@@ -12,9 +12,9 @@ export type AuthResponse = {
 
 export type HealthStatus = "Healthy" | "Degraded" | "Unhealthy";
 
-export type TicketStatus = 0 | 1 | 2 | 3 | 4 | 5 | string;
+export type TicketStatus = number | string;
 
-export type TicketPriority = 0 | 1 | 2 | 3 | string;
+export type TicketPriority = number | string;
 
 export type TicketListItem = {
   id: string;
@@ -97,4 +97,41 @@ export type CreateTicketInput = {
   description: string;
   categoryId: string;
   priority: number;
+};
+
+export type DashboardBucket = {
+  key: string;
+  count: number;
+};
+
+export type DashboardTicket = {
+  id: string;
+  number: string;
+  title: string;
+  status: TicketStatus;
+  priority: TicketPriority;
+  category: string;
+  assignedTo?: string | null;
+  updatedAt: string;
+  firstResponseDueAt?: string | null;
+  resolutionDueAt?: string | null;
+  firstResponseBreached: boolean;
+  resolutionBreached: boolean;
+};
+
+export type DashboardOverview = {
+  generatedAt: string;
+  totalTickets: number;
+  openTickets: number;
+  resolvedTickets: number;
+  unassignedTickets: number;
+  overdueTickets: number;
+  dueSoonTickets: number;
+  slaBreachedTickets: number;
+  criticalTickets: number;
+  highPriorityTickets: number;
+  byStatus: DashboardBucket[];
+  byPriority: DashboardBucket[];
+  recentTickets: DashboardTicket[];
+  slaBreaches: DashboardTicket[];
 };

@@ -4,13 +4,12 @@ import {
   getCurrentUser,
   getReadiness,
   getStoredToken,
-  getTickets,
   login,
   storeToken
 } from "./api";
+import { DashboardScreen } from "./DashboardScreen";
 import { TicketsScreen } from "./TicketsScreen";
-import { isOpenStatus } from "./ticketFormat";
-import type { HealthStatus, TicketListItem, UserProfile } from "./types";
+import type { HealthStatus, UserProfile } from "./types";
 
 type ViewKey = "dashboard" | "tickets" | "knowledge-base" | "admin";
 
@@ -245,56 +244,13 @@ function AppShell({
           </div>
         </header>
         <main className="content-panel">
-          {activeView === "dashboard" ? <DashboardPreview token={token} /> : null}
+          {activeView === "dashboard" ? <DashboardScreen token={token} user={user} /> : null}
           {activeView === "tickets" ? <TicketsScreen token={token} user={user} /> : null}
           {activeView === "knowledge-base" ? <KnowledgeBasePreview /> : null}
           {activeView === "admin" ? <AdminPreview user={user} /> : null}
         </main>
       </div>
     </div>
-  );
-}
-
-function DashboardPreview({ token }: { token: string }) {
-  const [tickets, setTickets] = useState<TicketListItem[]>([]);
-
-  useEffect(() => {
-    let isActive = true;
-
-    getTickets(token)
-      .then((items) => {
-        if (isActive) {
-          setTickets(items);
-        }
-      })
-      .catch(() => {
-        if (isActive) {
-          setTickets([]);
-        }
-      });
-
-    return () => {
-      isActive = false;
-    };
-  }, [token]);
-
-  const breached = tickets.filter((ticket) => ticket.firstResponseBreached || ticket.resolutionBreached).length;
-  const open = tickets.filter((ticket) => isOpenStatus(ticket.status)).length;
-
-  return (
-    <section className="view-grid">
-      <MetricCard label="Open tickets" value={String(open)} detail="loaded from /api/tickets" />
-      <MetricCard label="SLA breaches" value={String(breached)} detail="first response or resolution" />
-      <MetricCard label="Next module" value="Realtime" detail="SignalR dashboard PR" />
-      <RoadmapPanel
-        title="Dashboard shell scope"
-        items={[
-          "Authenticated frame is connected to API readiness and tickets.",
-          "Realtime metrics, charts and SLA drill-downs belong to feature/frontend-dashboard-realtime.",
-          "Current cards intentionally stay light to avoid mixing modules."
-        ]}
-      />
-    </section>
   );
 }
 

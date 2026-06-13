@@ -134,7 +134,7 @@ $env:SUPPORTPILOT_API_TARGET="http://localhost:8080"
 npm run dev
 ```
 
-Current frontend scope includes login, JWT session persistence, protected layout, health indicator and ticket workflows: filters, creation, details, comments, internal notes and attachments. Dashboard realtime, knowledge base/admin screens and Redis-backed backend caching are planned as separate PRs.
+Current frontend scope includes login, JWT session persistence, protected layout, health indicator, realtime dashboard and ticket workflows: filters, creation, details, comments, internal notes and attachments. Knowledge base/admin screens and Redis-backed backend caching are planned as separate PRs.
 
 ## Docker Compose
 

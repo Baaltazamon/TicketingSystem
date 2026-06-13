@@ -427,6 +427,209 @@ h2 {
   color: var(--ink-muted);
 }
 
+.dashboard-shell {
+  display: grid;
+  gap: 1.2rem;
+}
+
+.dashboard-hero,
+.dashboard-panel,
+.dashboard-metric {
+  border: 1px solid var(--line);
+  background: rgba(255, 250, 240, 0.68);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(18px);
+}
+
+.dashboard-hero {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  overflow: hidden;
+  position: relative;
+  padding: clamp(1.4rem, 4vw, 2.6rem);
+  border-radius: 2rem;
+}
+
+.dashboard-hero::after {
+  position: absolute;
+  right: -3rem;
+  bottom: -6rem;
+  width: 18rem;
+  height: 18rem;
+  border: 2rem solid rgba(53, 106, 138, 0.1);
+  border-radius: 50%;
+  content: "";
+}
+
+.dashboard-hero h2 {
+  max-width: 13ch;
+  margin-top: 0.65rem;
+  font-size: clamp(2.3rem, 6vw, 5rem);
+  line-height: 0.9;
+}
+
+.dashboard-hero p {
+  max-width: 48rem;
+  color: var(--ink-muted);
+}
+
+.realtime-pill {
+  display: inline-flex;
+  position: relative;
+  z-index: 1;
+  align-items: center;
+  gap: 0.55rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 0.75rem 1rem;
+  font-weight: 800;
+  background: rgba(255, 255, 255, 0.58);
+}
+
+.realtime-live .status-dot {
+  background: #28a36a;
+  box-shadow: 0 0 0 0.35rem rgba(40, 163, 106, 0.14);
+}
+
+.realtime-connecting .status-dot,
+.realtime-reconnecting .status-dot {
+  background: var(--amber);
+}
+
+.dashboard-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.dashboard-metric {
+  overflow: hidden;
+  position: relative;
+  padding: 1.2rem;
+  border-radius: 1.4rem;
+}
+
+.dashboard-metric::after {
+  position: absolute;
+  right: -2rem;
+  bottom: -3rem;
+  width: 8rem;
+  height: 8rem;
+  border-radius: 50%;
+  background: rgba(184, 243, 212, 0.38);
+  content: "";
+}
+
+.dashboard-metric-danger::after {
+  background: rgba(183, 93, 59, 0.18);
+}
+
+.dashboard-metric-warning::after {
+  background: rgba(240, 177, 90, 0.24);
+}
+
+.dashboard-metric span,
+.dashboard-metric small,
+.pulse-item small {
+  display: block;
+  color: var(--ink-muted);
+}
+
+.dashboard-metric strong {
+  display: block;
+  margin: 0.2rem 0;
+  font-family: "Space Grotesk", sans-serif;
+  font-size: clamp(2rem, 5vw, 4rem);
+}
+
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.dashboard-panel {
+  display: grid;
+  gap: 1rem;
+  padding: 1.2rem;
+  border-radius: 1.4rem;
+}
+
+.dashboard-panel-wide {
+  grid-column: span 1;
+}
+
+.dashboard-panel h3 {
+  margin: 0;
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 1.45rem;
+}
+
+.distribution-list,
+.pulse-list {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.distribution-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.distribution-row span {
+  color: var(--ink-muted);
+}
+
+.distribution-bar {
+  overflow: hidden;
+  grid-column: 1 / -1;
+  height: 0.6rem;
+  border-radius: 999px;
+  background: rgba(17, 35, 31, 0.08);
+}
+
+.distribution-bar i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--moss-deep), var(--mint));
+}
+
+.pulse-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 1rem;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: 1rem;
+  padding: 0.9rem;
+  background: rgba(255, 255, 255, 0.46);
+}
+
+.pulse-item-danger {
+  border-color: rgba(183, 93, 59, 0.34);
+  background: rgba(183, 93, 59, 0.11);
+}
+
+.pulse-item strong,
+.pulse-meta span,
+.pulse-meta small {
+  display: block;
+}
+
+.pulse-meta {
+  text-align: right;
+}
+
+.pulse-meta span {
+  color: var(--moss-deep);
+  font-weight: 800;
+}
+
 .tickets-workspace {
   display: grid;
   grid-template-columns: minmax(20rem, 0.85fr) minmax(0, 1.45fr);
@@ -761,6 +964,8 @@ h2 {
   .nav-list,
   .hero-grid,
   .view-grid,
+  .dashboard-grid,
+  .dashboard-metrics,
   .tickets-workspace,
   .detail-grid {
     grid-template-columns: 1fr;
@@ -797,7 +1002,22 @@ h2 {
   }
 
   .detail-header,
+  .dashboard-hero,
+  .pulse-item,
   .attachment-card {
     flex-direction: column;
+  }
+
+  .dashboard-hero {
+    display: grid;
+  }
+
+  .pulse-item {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .pulse-meta {
+    text-align: left;
   }
 }

@@ -64,6 +64,38 @@ public sealed class ApiIntegrationTests(SupportPilotApiFactory factory) : IClass
     }
 
     [Fact]
+    public async Task ReportsOverviewReturnsDashboardSnapshotForSupportStaff()
+    {
+        var admin = await CreateAuthenticatedClientAsync();
+        var ticketId = await CreateTicketAsync(admin, "Dashboard overview ticket");
+
+        var response = await admin.GetAsync("/api/reports/overview");
+
+        response.EnsureSuccessStatusCode();
+        using var json = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
+        var root = json.RootElement;
+
+        Assert.True(root.GetProperty("totalTickets").GetInt32() >= 1);
+        Assert.True(root.GetProperty("openTickets").GetInt32() >= 1);
+        Assert.True(root.GetProperty("unassignedTickets").GetInt32() >= 1);
+        Assert.NotEmpty(root.GetProperty("byStatus").EnumerateArray());
+        Assert.NotEmpty(root.GetProperty("byPriority").EnumerateArray());
+        Assert.Contains(
+            root.GetProperty("recentTickets").EnumerateArray(),
+            ticket => ticket.GetProperty("id").GetGuid() == ticketId);
+    }
+
+    [Fact]
+    public async Task ReportsOverviewRequiresSupportStaff()
+    {
+        var customer = await CreateAuthenticatedClientAsync("dashboard-customer");
+
+        var response = await customer.GetAsync("/api/reports/overview");
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
     public async Task AuditEndpointOrdersAndLimitsRowsInSqliteMode()
     {
         var client = await CreateAuthenticatedClientAsync();

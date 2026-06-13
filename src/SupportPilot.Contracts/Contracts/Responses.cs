@@ -139,3 +139,72 @@ public sealed record TicketCreatedResponse(Guid Id, string Number);
 /// </summary>
 /// <param name="Id">Created attachment identifier.</param>
 public sealed record TicketAttachmentCreatedResponse(Guid Id);
+
+/// <summary>
+/// Operational dashboard data for support staff.
+/// </summary>
+/// <param name="GeneratedAt">UTC timestamp when the snapshot was generated.</param>
+/// <param name="TotalTickets">Total number of tickets in the system.</param>
+/// <param name="OpenTickets">Tickets that are still in an active workflow state.</param>
+/// <param name="ResolvedTickets">Tickets that have reached a resolved or closed state.</param>
+/// <param name="UnassignedTickets">Open tickets without an assigned support user.</param>
+/// <param name="OverdueTickets">Open tickets whose first response or resolution SLA is overdue.</param>
+/// <param name="DueSoonTickets">Open tickets whose first response or resolution SLA is due within the next four hours.</param>
+/// <param name="SlaBreachedTickets">Tickets already marked with any SLA breach flag.</param>
+/// <param name="CriticalTickets">Open critical-priority tickets.</param>
+/// <param name="HighPriorityTickets">Open high-priority tickets.</param>
+/// <param name="ByStatus">Ticket distribution by workflow status.</param>
+/// <param name="ByPriority">Ticket distribution by priority.</param>
+/// <param name="RecentTickets">Most recently updated tickets.</param>
+/// <param name="SlaBreaches">Most recently updated tickets with SLA breach flags.</param>
+public sealed record DashboardOverviewResponse(
+    DateTimeOffset GeneratedAt,
+    int TotalTickets,
+    int OpenTickets,
+    int ResolvedTickets,
+    int UnassignedTickets,
+    int OverdueTickets,
+    int DueSoonTickets,
+    int SlaBreachedTickets,
+    int CriticalTickets,
+    int HighPriorityTickets,
+    IEnumerable<DashboardBucketResponse> ByStatus,
+    IEnumerable<DashboardBucketResponse> ByPriority,
+    IEnumerable<DashboardTicketResponse> RecentTickets,
+    IEnumerable<DashboardTicketResponse> SlaBreaches);
+
+/// <summary>
+/// Count bucket used by dashboard distributions.
+/// </summary>
+/// <param name="Key">Bucket key, usually an enum value serialized by the API.</param>
+/// <param name="Count">Number of tickets in the bucket.</param>
+public sealed record DashboardBucketResponse(string Key, int Count);
+
+/// <summary>
+/// Compact ticket row used by dashboard activity and SLA breach lists.
+/// </summary>
+/// <param name="Id">Ticket identifier.</param>
+/// <param name="Number">Human-readable ticket number.</param>
+/// <param name="Title">Short ticket title.</param>
+/// <param name="Status">Current workflow status.</param>
+/// <param name="Priority">Current business priority.</param>
+/// <param name="Category">Ticket category name.</param>
+/// <param name="AssignedTo">Display name of the assigned support user, if any.</param>
+/// <param name="UpdatedAt">UTC timestamp when the ticket was last changed.</param>
+/// <param name="FirstResponseDueAt">SLA deadline for first public support response.</param>
+/// <param name="ResolutionDueAt">SLA deadline for resolution.</param>
+/// <param name="FirstResponseBreached">Whether the first response SLA has already been breached.</param>
+/// <param name="ResolutionBreached">Whether the resolution SLA has already been breached.</param>
+public sealed record DashboardTicketResponse(
+    Guid Id,
+    string Number,
+    string Title,
+    TicketStatus Status,
+    TicketPriority Priority,
+    string Category,
+    string? AssignedTo,
+    DateTimeOffset UpdatedAt,
+    DateTimeOffset? FirstResponseDueAt,
+    DateTimeOffset? ResolutionDueAt,
+    bool FirstResponseBreached,
+    bool ResolutionBreached);

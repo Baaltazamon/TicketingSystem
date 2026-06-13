@@ -48,12 +48,13 @@ The frontend currently contains:
 - login and JWT session persistence;
 - protected application layout;
 - API readiness indicator;
+- realtime dashboard with support metrics, SLA breach feed and SignalR ticket updates;
 - ticket list filters;
 - ticket creation;
 - ticket details with SLA metadata;
 - status and assignment controls for support users;
 - public comments and internal notes;
 - attachment upload, download and deletion;
-- navigation placeholders for dashboard, knowledge base and admin.
+- navigation placeholders for knowledge base and admin.
 
-Realtime dashboard widgets, knowledge base administration and Redis-backed backend caching belong to separate PRs.
+Knowledge base administration and Redis-backed backend caching belong to separate PRs.

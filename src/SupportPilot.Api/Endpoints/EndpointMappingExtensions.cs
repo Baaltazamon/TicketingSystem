@@ -427,20 +427,108 @@ public static class EndpointMappingExtensions
     {
         var group = app.MapGroup("/api/reports").WithTags("Reports").RequireAuthorization("SupportStaff");
 
-        group.MapGet("/overview", async (SupportPilotDbContext db) =>
+        group.MapGet("/overview", async (SupportPilotDbContext db, CancellationToken cancellationToken) =>
         {
             var now = DateTimeOffset.UtcNow;
-            var tickets = await db.Tickets.AsNoTracking().ToListAsync();
-            var result = new
-            {
-                total = tickets.Count,
-                open = tickets.Count(x => x.Status is TicketStatus.New or TicketStatus.InProgress or TicketStatus.WaitingForCustomer),
-                resolved = tickets.Count(x => x.Status is TicketStatus.Resolved or TicketStatus.Closed),
-                slaBreached = tickets.Count(x => x.FirstResponseBreached || x.ResolutionBreached),
-                dueSoon = tickets.Count(x => x.ResolutionDueAt > now && x.ResolutionDueAt <= now.AddHours(4)),
-                byStatus = tickets.GroupBy(x => x.Status).Select(x => new { status = x.Key, count = x.Count() }),
-                byPriority = tickets.GroupBy(x => x.Priority).Select(x => new { priority = x.Key, count = x.Count() })
-            };
+            var dueSoon = now.AddHours(4);
+            var openStatuses = new[] { TicketStatus.New, TicketStatus.InProgress, TicketStatus.WaitingForCustomer };
+            var tickets = db.Tickets.AsNoTracking();
+
+            var byStatus = await tickets
+                .GroupBy(x => x.Status)
+                .Select(x => new DashboardBucketResponse(x.Key.ToString(), x.Count()))
+                .ToListAsync(cancellationToken);
+            var byPriority = await tickets
+                .GroupBy(x => x.Priority)
+                .Select(x => new DashboardBucketResponse(x.Key.ToString(), x.Count()))
+                .ToListAsync(cancellationToken);
+            var recentTickets = await db.Tickets
+                .FromSqlRaw("""
+                    SELECT *
+                    FROM "Tickets"
+                    ORDER BY "UpdatedAt" DESC
+                    LIMIT 8
+                    """)
+                .AsNoTracking()
+                .Include(x => x.Category)
+                .Include(x => x.AssignedTo)
+                .Select(x => new DashboardTicketResponse(
+                    x.Id,
+                    x.Number,
+                    x.Title,
+                    x.Status,
+                    x.Priority,
+                    x.Category.Name,
+                    x.AssignedTo == null ? null : x.AssignedTo.DisplayName,
+                    x.UpdatedAt,
+                    x.FirstResponseDueAt,
+                    x.ResolutionDueAt,
+                    x.FirstResponseBreached,
+                    x.ResolutionBreached))
+                .ToListAsync(cancellationToken);
+            var slaBreaches = await db.Tickets
+                .FromSqlRaw("""
+                    SELECT *
+                    FROM "Tickets"
+                    WHERE "FirstResponseBreached" OR "ResolutionBreached"
+                    ORDER BY "UpdatedAt" DESC
+                    LIMIT 8
+                    """)
+                .AsNoTracking()
+                .Include(x => x.Category)
+                .Include(x => x.AssignedTo)
+                .Select(x => new DashboardTicketResponse(
+                    x.Id,
+                    x.Number,
+                    x.Title,
+                    x.Status,
+                    x.Priority,
+                    x.Category.Name,
+                    x.AssignedTo == null ? null : x.AssignedTo.DisplayName,
+                    x.UpdatedAt,
+                    x.FirstResponseDueAt,
+                    x.ResolutionDueAt,
+                    x.FirstResponseBreached,
+                    x.ResolutionBreached))
+                .ToListAsync(cancellationToken);
+            var overdueTickets = await db.Database
+                .SqlQuery<int>($"""
+                    SELECT COUNT(*) AS "Value"
+                    FROM "Tickets"
+                    WHERE "Status" IN (0, 1, 2)
+                      AND (
+                          ("FirstResponseDueAt" IS NOT NULL AND "FirstResponseAt" IS NULL AND "FirstResponseDueAt" < {now})
+                          OR ("ResolutionDueAt" IS NOT NULL AND "ResolvedAt" IS NULL AND "ResolutionDueAt" < {now})
+                      )
+                    """)
+                .SingleAsync(cancellationToken);
+            var dueSoonTickets = await db.Database
+                .SqlQuery<int>($"""
+                    SELECT COUNT(*) AS "Value"
+                    FROM "Tickets"
+                    WHERE "Status" IN (0, 1, 2)
+                      AND (
+                          ("FirstResponseDueAt" IS NOT NULL AND "FirstResponseAt" IS NULL AND "FirstResponseDueAt" >= {now} AND "FirstResponseDueAt" <= {dueSoon})
+                          OR ("ResolutionDueAt" IS NOT NULL AND "ResolvedAt" IS NULL AND "ResolutionDueAt" >= {now} AND "ResolutionDueAt" <= {dueSoon})
+                      )
+                    """)
+                .SingleAsync(cancellationToken);
+
+            var result = new DashboardOverviewResponse(
+                now,
+                await tickets.CountAsync(cancellationToken),
+                await tickets.CountAsync(x => openStatuses.Contains(x.Status), cancellationToken),
+                await tickets.CountAsync(x => x.Status == TicketStatus.Resolved || x.Status == TicketStatus.Closed, cancellationToken),
+                await tickets.CountAsync(x => x.AssignedToId == null && openStatuses.Contains(x.Status), cancellationToken),
+                overdueTickets,
+                dueSoonTickets,
+                await tickets.CountAsync(x => x.FirstResponseBreached || x.ResolutionBreached, cancellationToken),
+                await tickets.CountAsync(x => openStatuses.Contains(x.Status) && x.Priority == TicketPriority.Critical, cancellationToken),
+                await tickets.CountAsync(x => openStatuses.Contains(x.Status) && x.Priority == TicketPriority.High, cancellationToken),
+                byStatus.OrderBy(x => x.Key).ToList(),
+                byPriority.OrderBy(x => x.Key).ToList(),
+                recentTickets,
+                slaBreaches);
 
             return Results.Ok(result);
         });
@@ -521,4 +609,5 @@ public static class EndpointMappingExtensions
 
     private static UserProfileResponse ToProfile(User user) =>
         new(user.Id, user.Email, user.DisplayName, user.UserRoles.Select(x => x.Role.Name).Order().ToArray());
+
 }

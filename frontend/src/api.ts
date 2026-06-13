@@ -1,6 +1,7 @@
 import type {
   AuthResponse,
   CreateTicketInput,
+  DashboardOverview,
   HealthStatus,
   TicketCategory,
   TicketDetail,
@@ -118,6 +119,10 @@ export async function getTicketCategories(token: string): Promise<TicketCategory
 
 export async function getUsers(token: string): Promise<UserProfile[]> {
   return request<UserProfile[]>("/admin/users", { token });
+}
+
+export async function getDashboardOverview(token: string): Promise<DashboardOverview> {
+  return request<DashboardOverview>("/reports/overview", { token });
 }
 
 type RequestOptions = RequestInit & {

@@ -820,14 +820,26 @@ h2 {
 
 .kb-admin-grid {
   display: grid;
-  grid-template-columns: minmax(16rem, 0.8fr) minmax(16rem, 0.8fr) minmax(20rem, 1.25fr);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr));
+  align-items: start;
   gap: 1rem;
+}
+
+.kb-admin-panel,
+.kb-form,
+.kb-admin-list {
+  align-content: start;
 }
 
 .kb-filter-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 9rem auto;
+  grid-template-columns: minmax(9rem, 1fr) minmax(7rem, 0.35fr) auto;
+  align-items: end;
   gap: 0.65rem;
+}
+
+.kb-admin-list button {
+  min-height: 5.6rem;
 }
 
 .kb-body-input {

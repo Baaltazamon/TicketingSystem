@@ -331,10 +331,22 @@ public static class EndpointMappingExtensions
     {
         var group = app.MapGroup("/api/kb").WithTags("KnowledgeBase");
 
-        group.MapGet("/categories", async (SupportPilotDbContext db) =>
-            Results.Ok(await db.KnowledgeBaseCategories.AsNoTracking().OrderBy(x => x.Name).ToListAsync()));
+        group.MapGet("/categories", async (SupportPilotDbContext db, CancellationToken cancellationToken) =>
+            Results.Ok(await db.KnowledgeBaseCategories
+                .AsNoTracking()
+                .OrderBy(x => x.Name)
+                .Select(x => new KnowledgeBaseCategoryResponse(
+                    x.Id,
+                    x.Name,
+                    x.Description,
+                    x.Articles.Count(article => article.IsPublished)))
+                .ToListAsync(cancellationToken)));
 
-        group.MapGet("/articles", async ([FromQuery] string? search, SupportPilotDbContext db) =>
+        group.MapGet("/articles", async (
+            [FromQuery] string? search,
+            [FromQuery] Guid? categoryId,
+            SupportPilotDbContext db,
+            CancellationToken cancellationToken) =>
         {
             var query = db.KnowledgeBaseArticles
                 .AsNoTracking()
@@ -347,42 +359,150 @@ public static class EndpointMappingExtensions
                 query = query.Where(x => x.Title.Contains(search) || x.Body.Contains(search));
             }
 
+            if (categoryId.HasValue)
+            {
+                query = query.Where(x => x.CategoryId == categoryId.Value);
+            }
+
             var articles = await query
                 .OrderBy(x => x.Title)
-                .Select(x => new
-                {
+                .Select(x => new KnowledgeBaseArticleListItemResponse(
                     x.Id,
                     x.Title,
                     x.Slug,
-                    category = x.Category.Name,
-                    x.UpdatedAt
-                })
-                .ToListAsync();
+                    x.CategoryId,
+                    x.Category.Name,
+                    x.IsPublished,
+                    x.UpdatedAt))
+                .ToListAsync(cancellationToken);
 
             return Results.Ok(articles);
         });
 
-        group.MapGet("/articles/{slug}", async (string slug, SupportPilotDbContext db) =>
+        group.MapGet("/articles/{slug}", async (string slug, SupportPilotDbContext db, CancellationToken cancellationToken) =>
         {
             var article = await db.KnowledgeBaseArticles
                 .AsNoTracking()
                 .Include(x => x.Category)
-                .SingleOrDefaultAsync(x => x.Slug == slug && x.IsPublished);
+                .SingleOrDefaultAsync(x => x.Slug == slug && x.IsPublished, cancellationToken);
 
-            return article is null ? Results.NotFound() : Results.Ok(article);
+            return article is null
+                ? Results.NotFound()
+                : Results.Ok(ToKnowledgeBaseArticleResponse(article));
         });
 
         var adminGroup = group.MapGroup("/admin").RequireAuthorization("SupportStaff");
 
-        adminGroup.MapPost("/categories", async (UpsertKnowledgeBaseCategoryRequest request, SupportPilotDbContext db) =>
+        adminGroup.MapGet("/categories", async (SupportPilotDbContext db, CancellationToken cancellationToken) =>
+            Results.Ok(await db.KnowledgeBaseCategories
+                .AsNoTracking()
+                .OrderBy(x => x.Name)
+                .Select(x => new KnowledgeBaseCategoryResponse(
+                    x.Id,
+                    x.Name,
+                    x.Description,
+                    x.Articles.Count))
+                .ToListAsync(cancellationToken)));
+
+        adminGroup.MapPost("/categories", async (
+            UpsertKnowledgeBaseCategoryRequest request,
+            SupportPilotDbContext db,
+            CancellationToken cancellationToken) =>
         {
             var category = new KnowledgeBaseCategory { Name = request.Name.Trim(), Description = request.Description };
             db.KnowledgeBaseCategories.Add(category);
-            await db.SaveChangesAsync();
-            return Results.Created($"/api/kb/categories/{category.Id}", category);
+            await db.SaveChangesAsync(cancellationToken);
+            return Results.Created(
+                $"/api/kb/admin/categories/{category.Id}",
+                new KnowledgeBaseCategoryResponse(category.Id, category.Name, category.Description, 0));
         });
 
-        adminGroup.MapPost("/articles", async (UpsertKnowledgeBaseArticleRequest request, SupportPilotDbContext db) =>
+        adminGroup.MapPut("/categories/{id:guid}", async (
+            Guid id,
+            UpsertKnowledgeBaseCategoryRequest request,
+            SupportPilotDbContext db,
+            CancellationToken cancellationToken) =>
+        {
+            var category = await db.KnowledgeBaseCategories
+                .Include(x => x.Articles)
+                .SingleOrDefaultAsync(x => x.Id == id, cancellationToken);
+            if (category is null)
+            {
+                return Results.NotFound();
+            }
+
+            category.Name = request.Name.Trim();
+            category.Description = request.Description;
+            await db.SaveChangesAsync(cancellationToken);
+
+            return Results.Ok(new KnowledgeBaseCategoryResponse(
+                category.Id,
+                category.Name,
+                category.Description,
+                category.Articles.Count));
+        });
+
+        adminGroup.MapGet("/articles", async (
+            [FromQuery] string? search,
+            [FromQuery] Guid? categoryId,
+            [FromQuery] bool? published,
+            SupportPilotDbContext db,
+            CancellationToken cancellationToken) =>
+        {
+            var query = db.KnowledgeBaseArticles
+                .AsNoTracking()
+                .Include(x => x.Category)
+                .AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                query = query.Where(x => x.Title.Contains(search) || x.Body.Contains(search) || x.Slug.Contains(search));
+            }
+
+            if (categoryId.HasValue)
+            {
+                query = query.Where(x => x.CategoryId == categoryId.Value);
+            }
+
+            if (published.HasValue)
+            {
+                query = query.Where(x => x.IsPublished == published.Value);
+            }
+
+            var articles = await query
+                .OrderBy(x => x.Title)
+                .Select(x => new KnowledgeBaseArticleListItemResponse(
+                    x.Id,
+                    x.Title,
+                    x.Slug,
+                    x.CategoryId,
+                    x.Category.Name,
+                    x.IsPublished,
+                    x.UpdatedAt))
+                .ToListAsync(cancellationToken);
+
+            return Results.Ok(articles);
+        });
+
+        adminGroup.MapGet("/articles/{id:guid}", async (
+            Guid id,
+            SupportPilotDbContext db,
+            CancellationToken cancellationToken) =>
+        {
+            var article = await db.KnowledgeBaseArticles
+                .AsNoTracking()
+                .Include(x => x.Category)
+                .SingleOrDefaultAsync(x => x.Id == id, cancellationToken);
+
+            return article is null
+                ? Results.NotFound()
+                : Results.Ok(ToKnowledgeBaseArticleResponse(article));
+        });
+
+        adminGroup.MapPost("/articles", async (
+            UpsertKnowledgeBaseArticleRequest request,
+            SupportPilotDbContext db,
+            CancellationToken cancellationToken) =>
         {
             var article = new KnowledgeBaseArticle
             {
@@ -393,13 +513,21 @@ public static class EndpointMappingExtensions
                 IsPublished = request.IsPublished
             };
             db.KnowledgeBaseArticles.Add(article);
-            await db.SaveChangesAsync();
-            return Results.Created($"/api/kb/articles/{article.Slug}", article);
+            await db.SaveChangesAsync(cancellationToken);
+            var created = await db.KnowledgeBaseArticles
+                .AsNoTracking()
+                .Include(x => x.Category)
+                .SingleAsync(x => x.Id == article.Id, cancellationToken);
+            return Results.Created($"/api/kb/admin/articles/{article.Id}", ToKnowledgeBaseArticleResponse(created));
         });
 
-        adminGroup.MapPut("/articles/{id:guid}", async (Guid id, UpsertKnowledgeBaseArticleRequest request, SupportPilotDbContext db) =>
+        adminGroup.MapPut("/articles/{id:guid}", async (
+            Guid id,
+            UpsertKnowledgeBaseArticleRequest request,
+            SupportPilotDbContext db,
+            CancellationToken cancellationToken) =>
         {
-            var article = await db.KnowledgeBaseArticles.SingleOrDefaultAsync(x => x.Id == id);
+            var article = await db.KnowledgeBaseArticles.SingleOrDefaultAsync(x => x.Id == id, cancellationToken);
             if (article is null)
             {
                 return Results.NotFound();
@@ -411,8 +539,12 @@ public static class EndpointMappingExtensions
             article.Body = request.Body;
             article.IsPublished = request.IsPublished;
             article.UpdatedAt = DateTimeOffset.UtcNow;
-            await db.SaveChangesAsync();
-            return Results.Ok(article);
+            await db.SaveChangesAsync(cancellationToken);
+            var updated = await db.KnowledgeBaseArticles
+                .AsNoTracking()
+                .Include(x => x.Category)
+                .SingleAsync(x => x.Id == id, cancellationToken);
+            return Results.Ok(ToKnowledgeBaseArticleResponse(updated));
         });
 
         return app;
@@ -609,5 +741,17 @@ public static class EndpointMappingExtensions
 
     private static UserProfileResponse ToProfile(User user) =>
         new(user.Id, user.Email, user.DisplayName, user.UserRoles.Select(x => x.Role.Name).Order().ToArray());
+
+    private static KnowledgeBaseArticleResponse ToKnowledgeBaseArticleResponse(KnowledgeBaseArticle article) =>
+        new(
+            article.Id,
+            article.Title,
+            article.Slug,
+            article.Body,
+            article.CategoryId,
+            article.Category.Name,
+            article.IsPublished,
+            article.CreatedAt,
+            article.UpdatedAt);
 
 }

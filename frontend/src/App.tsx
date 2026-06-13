@@ -8,6 +8,7 @@ import {
   storeToken
 } from "./api";
 import { DashboardScreen } from "./DashboardScreen";
+import { KnowledgeBaseScreen } from "./KnowledgeBaseScreen";
 import { TicketsScreen } from "./TicketsScreen";
 import type { HealthStatus, UserProfile } from "./types";
 
@@ -246,24 +247,11 @@ function AppShell({
         <main className="content-panel">
           {activeView === "dashboard" ? <DashboardScreen token={token} user={user} /> : null}
           {activeView === "tickets" ? <TicketsScreen token={token} user={user} /> : null}
-          {activeView === "knowledge-base" ? <KnowledgeBasePreview /> : null}
+          {activeView === "knowledge-base" ? <KnowledgeBaseScreen token={token} user={user} /> : null}
           {activeView === "admin" ? <AdminPreview user={user} /> : null}
         </main>
       </div>
     </div>
-  );
-}
-
-function KnowledgeBasePreview() {
-  return (
-    <RoadmapPanel
-      title="Knowledge base shell"
-      items={[
-        "Public article search and article view are planned for feature/frontend-kb-admin.",
-        "Admin category/article forms will use the existing /api/kb/admin endpoints.",
-        "This page reserves layout, navigation and ownership boundaries."
-      ]}
-    />
   );
 }
 

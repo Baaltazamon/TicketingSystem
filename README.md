@@ -230,7 +230,7 @@ Application -> Domain / Contracts
 Contracts -> Domain
 ```
 
-Knowledge base workflows live in `SupportPilot.Application/KnowledgeBase/KnowledgeBaseUseCases.cs`; support dashboard report queries live in `SupportPilot.Application/Reports/ReportUseCases.cs`; notification inbox workflows live in `SupportPilot.Application/Notifications/NotificationUseCases.cs`; audit-log reads are exposed through `SupportPilot.Application/Admin/AdminUseCases.cs`. API endpoints stay as request/response adapters and map `ApplicationResult<T>` to HTTP responses.
+Ticket workflows, support lookups and attachment download authorization live in `SupportPilot.Application/Tickets/TicketUseCases.cs`; knowledge base workflows live in `SupportPilot.Application/KnowledgeBase/KnowledgeBaseUseCases.cs`; support dashboard report queries live in `SupportPilot.Application/Reports/ReportUseCases.cs`; notification inbox workflows live in `SupportPilot.Application/Notifications/NotificationUseCases.cs`; audit-log reads are exposed through `SupportPilot.Application/Admin/AdminUseCases.cs`. API endpoints stay as request/response adapters and map `ApplicationResult<T>` to HTTP responses.
 
 Storage-optimized notification inbox and audit-log queries are exposed to Application through `INotificationInboxStore` and `IAuditLogReader`, with EF Core implementations in Infrastructure.
 
@@ -311,4 +311,4 @@ dotnet publish src/SupportPilot.Notifications.Worker/SupportPilot.Notifications.
 
 ## Следующие технические шаги
 
-- Move remaining ticket-support reads and attachment download authorization into Application use cases so the remaining API endpoints stay thin request/response adapters.
+- Add route-level OpenAPI metadata for ticket, knowledge-base, report and notification endpoints so Swagger documents the full API surface consistently.

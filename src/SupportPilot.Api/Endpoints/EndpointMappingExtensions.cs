@@ -36,7 +36,12 @@ public static class EndpointMappingExtensions
             return result.IsSuccess
                 ? Results.Created($"/api/users/{result.Value!.Id}", result.Value)
                 : ToHttpResult(result);
-        });
+        })
+            .WithRouteDocs(
+                "Register a customer account",
+                "Creates a new customer account and returns the created user profile.")
+            .Produces<UserProfileResponse>(StatusCodes.Status201Created)
+            .Produces(StatusCodes.Status409Conflict);
 
         group.MapPost("/login", async (
             LoginRequest request,
@@ -45,7 +50,12 @@ public static class EndpointMappingExtensions
         {
             var result = await auth.LoginAsync(request, cancellationToken);
             return result.IsSuccess ? Results.Ok(result.Value) : ToHttpResult(result);
-        });
+        })
+            .WithRouteDocs(
+                "Authenticate a user",
+                "Validates user credentials and returns a JWT bearer token with the current user profile.")
+            .Produces<AuthResponse>()
+            .Produces(StatusCodes.Status401Unauthorized);
 
         group.MapGet("/me", async (
             CurrentUser currentUser,
@@ -54,7 +64,13 @@ public static class EndpointMappingExtensions
         {
             var result = await auth.GetCurrentUserAsync(currentUser.Id, cancellationToken);
             return result.IsSuccess ? Results.Ok(result.Value) : ToHttpResult(result);
-        }).RequireAuthorization();
+        })
+            .RequireAuthorization()
+            .WithRouteDocs(
+                "Get current user",
+                "Returns the authenticated user's profile and role list.")
+            .Produces<UserProfileResponse>()
+            .Produces(StatusCodes.Status401Unauthorized);
 
         return app;
     }
@@ -69,11 +85,20 @@ public static class EndpointMappingExtensions
         var group = app.MapGroup("/api/tickets").WithTags("Tickets").RequireAuthorization();
 
         group.MapGet("/categories", async (TicketUseCases tickets, CancellationToken cancellationToken) =>
-            Results.Ok(await tickets.ListActiveCategoriesAsync(cancellationToken)));
+            Results.Ok(await tickets.ListActiveCategoriesAsync(cancellationToken)))
+            .WithRouteDocs(
+                "List active ticket categories",
+                "Returns active categories that can be selected when creating a ticket.")
+            .Produces<IReadOnlyList<TicketCategory>>();
 
         group.MapGet("/assignees", async (TicketUseCases tickets, CancellationToken cancellationToken) =>
             Results.Ok(await tickets.ListAssigneesAsync(cancellationToken)))
-            .RequireAuthorization("SupportStaff");
+            .RequireAuthorization("SupportStaff")
+            .WithRouteDocs(
+                "List ticket assignees",
+                "Returns active administrators and agents that can be assigned to tickets. Requires support staff access.")
+            .Produces<IReadOnlyList<UserProfileResponse>>()
+            .Produces(StatusCodes.Status403Forbidden);
 
         group.MapGet("/", async (
             [AsParameters] TicketQuery query,
@@ -83,7 +108,11 @@ public static class EndpointMappingExtensions
         {
             var result = await tickets.ListAsync(query, currentUser.ToTicketActor(), cancellationToken);
             return Results.Ok(result);
-        });
+        })
+            .WithRouteDocs(
+                "List visible tickets",
+                "Returns tickets visible to the current user with optional filters for status, priority, category, assignee, search text, ownership and SLA state.")
+            .Produces<IReadOnlyList<TicketListItemResponse>>();
 
         group.MapPost("/", async (
             CreateTicketRequest request,
@@ -101,7 +130,12 @@ public static class EndpointMappingExtensions
             return result.IsSuccess
                 ? Results.Created($"/api/tickets/{result.Value!.Id}", result.Value)
                 : ToHttpResult(result);
-        });
+        })
+            .WithRouteDocs(
+                "Create a ticket",
+                "Creates a new support ticket for the current user and initializes SLA deadlines from the active policy.")
+            .Produces<TicketCreatedResponse>(StatusCodes.Status201Created)
+            .Produces(StatusCodes.Status400BadRequest);
 
         group.MapGet("/{id:guid}", async (
             Guid id,
@@ -111,7 +145,13 @@ public static class EndpointMappingExtensions
         {
             var result = await tickets.GetDetailsAsync(id, currentUser.ToTicketActor(), cancellationToken);
             return result.IsSuccess ? Results.Ok(result.Value) : ToHttpResult(result);
-        });
+        })
+            .WithRouteDocs(
+                "Get ticket details",
+                "Returns a ticket with visible comments, attachments and timeline entries after validating read access.")
+            .Produces<TicketDetailResponse>()
+            .Produces(StatusCodes.Status403Forbidden)
+            .Produces(StatusCodes.Status404NotFound);
 
         group.MapPatch("/{id:guid}/status", async (
             Guid id,
@@ -128,7 +168,14 @@ public static class EndpointMappingExtensions
             }
 
             return ToHttpResult(result);
-        });
+        })
+            .WithRouteDocs(
+                "Change ticket status",
+                "Moves a ticket through the workflow when the requested transition is allowed for the current actor.")
+            .Produces(StatusCodes.Status204NoContent)
+            .Produces(StatusCodes.Status400BadRequest)
+            .Produces(StatusCodes.Status403Forbidden)
+            .Produces(StatusCodes.Status404NotFound);
 
         group.MapPatch("/{id:guid}/assignee", async (
             Guid id,
@@ -145,7 +192,15 @@ public static class EndpointMappingExtensions
             }
 
             return ToHttpResult(result);
-        }).RequireAuthorization("SupportStaff");
+        })
+            .RequireAuthorization("SupportStaff")
+            .WithRouteDocs(
+                "Assign a ticket",
+                "Assigns or clears the support user responsible for a ticket. Requires support staff access.")
+            .Produces(StatusCodes.Status204NoContent)
+            .Produces(StatusCodes.Status400BadRequest)
+            .Produces(StatusCodes.Status403Forbidden)
+            .Produces(StatusCodes.Status404NotFound);
 
         group.MapPost("/{id:guid}/comments", async (
             Guid id,
@@ -164,7 +219,14 @@ public static class EndpointMappingExtensions
             return result.IsSuccess
                 ? Results.Created($"/api/tickets/{id}/comments", new { id })
                 : ToHttpResult(result);
-        });
+        })
+            .WithRouteDocs(
+                "Add a ticket comment",
+                "Adds a public comment or, for support staff, an internal note to a ticket.")
+            .Produces(StatusCodes.Status201Created)
+            .Produces(StatusCodes.Status400BadRequest)
+            .Produces(StatusCodes.Status403Forbidden)
+            .Produces(StatusCodes.Status404NotFound);
 
         group.MapPost("/{id:guid}/attachments", async (
             Guid id,
@@ -176,14 +238,14 @@ public static class EndpointMappingExtensions
         {
             if (!request.HasFormContentType)
             {
-                return Results.BadRequest(new { message = "Ожидается multipart/form-data с полем file." });
+                return Results.BadRequest(new { message = "Expected multipart/form-data with a file field." });
             }
 
             var form = await request.ReadFormAsync(cancellationToken);
             var file = form.Files.GetFile("file");
             if (file is null || file.Length == 0)
             {
-                return Results.BadRequest(new { message = "Файл не передан." });
+                return Results.BadRequest(new { message = "File was not provided." });
             }
 
             await using var fileStream = file.OpenReadStream();
@@ -202,7 +264,15 @@ public static class EndpointMappingExtensions
             return result.IsSuccess
                 ? Results.Created($"/api/tickets/{id}/attachments/{result.Value!.Id}", result.Value)
                 : ToHttpResult(result);
-        });
+        })
+            .WithRouteDocs(
+                "Upload a ticket attachment",
+                "Uploads a file attachment to the configured storage provider and stores attachment metadata on the ticket.")
+            .Accepts<IFormFile>("multipart/form-data")
+            .Produces<TicketAttachmentCreatedResponse>(StatusCodes.Status201Created)
+            .Produces(StatusCodes.Status400BadRequest)
+            .Produces(StatusCodes.Status403Forbidden)
+            .Produces(StatusCodes.Status404NotFound);
 
         group.MapGet("/{ticketId:guid}/attachments/{attachmentId:guid}", async (
             Guid ticketId,
@@ -220,7 +290,13 @@ public static class EndpointMappingExtensions
             return result.IsSuccess
                 ? Results.File(result.Value!.Content, result.Value.ContentType, result.Value.FileName)
                 : ToHttpResult(result);
-        });
+        })
+            .WithRouteDocs(
+                "Download a ticket attachment",
+                "Downloads a ticket attachment after validating ticket read access.")
+            .Produces(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status403Forbidden)
+            .Produces(StatusCodes.Status404NotFound);
 
         group.MapDelete("/{ticketId:guid}/attachments/{attachmentId:guid}", async (
             Guid ticketId,
@@ -237,7 +313,13 @@ public static class EndpointMappingExtensions
             }
 
             return ToHttpResult(result);
-        });
+        })
+            .WithRouteDocs(
+                "Delete a ticket attachment",
+                "Deletes an attachment metadata record and removes the object from the configured storage provider.")
+            .Produces(StatusCodes.Status204NoContent)
+            .Produces(StatusCodes.Status403Forbidden)
+            .Produces(StatusCodes.Status404NotFound);
 
         return app;
     }
@@ -363,14 +445,22 @@ public static class EndpointMappingExtensions
         var group = app.MapGroup("/api/kb").WithTags("KnowledgeBase");
 
         group.MapGet("/categories", async (KnowledgeBaseUseCases knowledgeBase, CancellationToken cancellationToken) =>
-            Results.Ok(await knowledgeBase.ListPublicCategoriesAsync(cancellationToken)));
+            Results.Ok(await knowledgeBase.ListPublicCategoriesAsync(cancellationToken)))
+            .WithRouteDocs(
+                "List public knowledge base categories",
+                "Returns categories that contain published knowledge base articles.")
+            .Produces<IReadOnlyList<KnowledgeBaseCategoryResponse>>();
 
         group.MapGet("/articles", async (
             [FromQuery] string? search,
             [FromQuery] Guid? categoryId,
             KnowledgeBaseUseCases knowledgeBase,
             CancellationToken cancellationToken) =>
-            Results.Ok(await knowledgeBase.ListPublicArticlesAsync(search, categoryId, cancellationToken)));
+            Results.Ok(await knowledgeBase.ListPublicArticlesAsync(search, categoryId, cancellationToken)))
+            .WithRouteDocs(
+                "Search public knowledge base articles",
+                "Returns published articles filtered by optional search text and category.")
+            .Produces<IReadOnlyList<KnowledgeBaseArticleListItemResponse>>();
 
         group.MapGet("/articles/{slug}", async (
             string slug,
@@ -379,12 +469,22 @@ public static class EndpointMappingExtensions
         {
             var result = await knowledgeBase.GetPublicArticleAsync(slug, cancellationToken);
             return result.IsSuccess ? Results.Ok(result.Value) : ToHttpResult(result);
-        });
+        })
+            .WithRouteDocs(
+                "Get public knowledge base article",
+                "Returns a published article by slug.")
+            .Produces<KnowledgeBaseArticleResponse>()
+            .Produces(StatusCodes.Status404NotFound);
 
         var adminGroup = group.MapGroup("/admin").RequireAuthorization("SupportStaff");
 
         adminGroup.MapGet("/categories", async (KnowledgeBaseUseCases knowledgeBase, CancellationToken cancellationToken) =>
-            Results.Ok(await knowledgeBase.ListAdminCategoriesAsync(cancellationToken)));
+            Results.Ok(await knowledgeBase.ListAdminCategoriesAsync(cancellationToken)))
+            .WithRouteDocs(
+                "List knowledge base categories for administration",
+                "Returns all knowledge base categories with article counts. Requires support staff access.")
+            .Produces<IReadOnlyList<KnowledgeBaseCategoryResponse>>()
+            .Produces(StatusCodes.Status403Forbidden);
 
         adminGroup.MapPost("/categories", async (
             UpsertKnowledgeBaseCategoryRequest request,
@@ -395,7 +495,13 @@ public static class EndpointMappingExtensions
             return result.IsSuccess
                 ? Results.Created($"/api/kb/admin/categories/{result.Value!.Id}", result.Value)
                 : ToHttpResult(result);
-        });
+        })
+            .WithRouteDocs(
+                "Create a knowledge base category",
+                "Creates a category used to organize knowledge base articles. Requires support staff access.")
+            .Produces<KnowledgeBaseCategoryResponse>(StatusCodes.Status201Created)
+            .Produces(StatusCodes.Status400BadRequest)
+            .Produces(StatusCodes.Status403Forbidden);
 
         adminGroup.MapPut("/categories/{id:guid}", async (
             Guid id,
@@ -405,7 +511,14 @@ public static class EndpointMappingExtensions
         {
             var result = await knowledgeBase.UpdateCategoryAsync(id, request, cancellationToken);
             return result.IsSuccess ? Results.Ok(result.Value) : ToHttpResult(result);
-        });
+        })
+            .WithRouteDocs(
+                "Update a knowledge base category",
+                "Updates a knowledge base category name and description. Requires support staff access.")
+            .Produces<KnowledgeBaseCategoryResponse>()
+            .Produces(StatusCodes.Status400BadRequest)
+            .Produces(StatusCodes.Status403Forbidden)
+            .Produces(StatusCodes.Status404NotFound);
 
         adminGroup.MapGet("/articles", async (
             [FromQuery] string? search,
@@ -413,7 +526,12 @@ public static class EndpointMappingExtensions
             [FromQuery] bool? published,
             KnowledgeBaseUseCases knowledgeBase,
             CancellationToken cancellationToken) =>
-            Results.Ok(await knowledgeBase.ListAdminArticlesAsync(search, categoryId, published, cancellationToken)));
+            Results.Ok(await knowledgeBase.ListAdminArticlesAsync(search, categoryId, published, cancellationToken)))
+            .WithRouteDocs(
+                "List knowledge base articles for administration",
+                "Returns draft and published articles filtered by optional search text, category and publication state.")
+            .Produces<IReadOnlyList<KnowledgeBaseArticleListItemResponse>>()
+            .Produces(StatusCodes.Status403Forbidden);
 
         adminGroup.MapGet("/articles/{id:guid}", async (
             Guid id,
@@ -422,7 +540,13 @@ public static class EndpointMappingExtensions
         {
             var result = await knowledgeBase.GetAdminArticleAsync(id, cancellationToken);
             return result.IsSuccess ? Results.Ok(result.Value) : ToHttpResult(result);
-        });
+        })
+            .WithRouteDocs(
+                "Get knowledge base article for administration",
+                "Returns an article by identifier regardless of publication state. Requires support staff access.")
+            .Produces<KnowledgeBaseArticleResponse>()
+            .Produces(StatusCodes.Status403Forbidden)
+            .Produces(StatusCodes.Status404NotFound);
 
         adminGroup.MapPost("/articles", async (
             UpsertKnowledgeBaseArticleRequest request,
@@ -433,7 +557,13 @@ public static class EndpointMappingExtensions
             return result.IsSuccess
                 ? Results.Created($"/api/kb/admin/articles/{result.Value!.Id}", result.Value)
                 : ToHttpResult(result);
-        });
+        })
+            .WithRouteDocs(
+                "Create a knowledge base article",
+                "Creates a draft or published knowledge base article. Requires support staff access.")
+            .Produces<KnowledgeBaseArticleResponse>(StatusCodes.Status201Created)
+            .Produces(StatusCodes.Status400BadRequest)
+            .Produces(StatusCodes.Status403Forbidden);
 
         adminGroup.MapPut("/articles/{id:guid}", async (
             Guid id,
@@ -443,7 +573,14 @@ public static class EndpointMappingExtensions
         {
             var result = await knowledgeBase.UpdateArticleAsync(id, request, cancellationToken);
             return result.IsSuccess ? Results.Ok(result.Value) : ToHttpResult(result);
-        });
+        })
+            .WithRouteDocs(
+                "Update a knowledge base article",
+                "Updates article content, slug, category and publication state. Requires support staff access.")
+            .Produces<KnowledgeBaseArticleResponse>()
+            .Produces(StatusCodes.Status400BadRequest)
+            .Produces(StatusCodes.Status403Forbidden)
+            .Produces(StatusCodes.Status404NotFound);
 
         return app;
     }
@@ -458,7 +595,12 @@ public static class EndpointMappingExtensions
         var group = app.MapGroup("/api/reports").WithTags("Reports").RequireAuthorization("SupportStaff");
 
         group.MapGet("/overview", async (ReportUseCases reports, CancellationToken cancellationToken) =>
-            Results.Ok(await reports.GetOverviewAsync(cancellationToken)));
+            Results.Ok(await reports.GetOverviewAsync(cancellationToken)))
+            .WithRouteDocs(
+                "Get support dashboard overview",
+                "Returns operational ticket counts, SLA pressure, recent tickets and SLA breach lists for support staff.")
+            .Produces<DashboardOverviewResponse>()
+            .Produces(StatusCodes.Status403Forbidden);
 
         return app;
     }

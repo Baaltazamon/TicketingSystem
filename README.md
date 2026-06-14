@@ -1,40 +1,41 @@
 # SupportPilot
 
-SupportPilot - MVP системы обращений в поддержку на ASP.NET Core Web API.
+SupportPilot is an MVP support ticketing system built with ASP.NET Core Web API.
 
-## Что уже есть
+## Current Scope
 
-- Clean Architecture: `Api`, `Application`, `Domain`, `Infrastructure`, `Contracts`.
-- JWT-аутентификация и роли `Admin`, `Agent`, `Customer`.
-- Регистрация, вход и получение текущего пользователя через application use cases.
-- Обращения, категории, статусы, приоритеты и назначение ответственных.
-- SLA-политики для `Critical`, `High`, `Normal`, `Low`.
-- Фоновый SLA-monitor, который помечает нарушения и создает уведомления.
-- Отдельный `SupportPilot.Notifications.Worker` для SLA monitor и обработки уведомлений через RabbitMQ.
-- Публичные комментарии и внутренние заметки.
-- Вложения через `IFileStorage`: локальное хранилище или MinIO.
-- Timeline обращения: создание, смена статуса, комментарии, файлы.
-- База знаний / FAQ с поиском по статьям.
-- Отчеты, аудит и SignalR hub `/hubs/tickets`.
-- Health checks: `/api/health`, `/api/health/ready`, `/api/health/live`.
-- EF Core migrations вместо `EnsureCreated`.
-- SQLite для локального режима, PostgreSQL для Docker/production-like режима.
+- Clean Architecture split into `Api`, `Application`, `Domain`, `Infrastructure` and `Contracts`.
+- JWT authentication with `Admin`, `Agent` and `Customer` roles.
+- Registration, login and current-user profile workflows implemented through application use cases.
+- Tickets with categories, statuses, priorities and assignee management.
+- SLA policies for `Critical`, `High`, `Normal` and `Low` priorities.
+- Background SLA monitor that marks breaches and creates notifications.
+- Dedicated `SupportPilot.Notifications.Worker` for SLA monitoring and RabbitMQ notification processing.
+- Public comments and internal support notes.
+- Attachments through `IFileStorage`, backed by local storage or MinIO.
+- Ticket timeline assembled from creation, status changes, comments and attachments.
+- Knowledge base / FAQ articles with category filtering and search.
+- Reports, audit log and SignalR hub at `/hubs/tickets`.
+- Health checks at `/api/health`, `/api/health/ready` and `/api/health/live`.
+- EF Core migrations instead of `EnsureCreated`.
+- SQLite for local development, PostgreSQL for Docker and production-like runs.
+- Memory cache locally and Redis cache in the Docker profile.
 
-## Быстрый запуск
+## Quick Start
 
-Локальный режим использует SQLite и локальное файловое хранилище:
+Local mode uses SQLite, local file storage and in-memory cache:
 
 ```powershell
 dotnet run --project src/SupportPilot.Api
 ```
 
-Swagger будет доступен по адресу:
+Swagger is available at:
 
 ```text
 http://localhost:5295/swagger
 ```
 
-Администратор создается автоматически при первом запуске:
+The default administrator is created automatically during the first startup:
 
 ```text
 email: admin@supportpilot.local
@@ -43,7 +44,7 @@ password: Admin123!
 
 ## Infrastructure Profile
 
-Провайдер базы данных выбирается через конфиг:
+The database provider is selected through configuration:
 
 ```json
 {
@@ -53,7 +54,7 @@ password: Admin123!
 }
 ```
 
-или:
+or:
 
 ```json
 {
@@ -63,7 +64,7 @@ password: Admin123!
 }
 ```
 
-Провайдер файлового хранилища выбирается через конфиг:
+The file storage provider is selected through configuration:
 
 ```json
 {
@@ -73,7 +74,7 @@ password: Admin123!
 }
 ```
 
-или:
+or:
 
 ```json
 {
@@ -83,7 +84,7 @@ password: Admin123!
 }
 ```
 
-Провайдер application cache выбирается через конфиг:
+The application cache provider is selected through configuration:
 
 ```json
 {
@@ -95,7 +96,7 @@ password: Admin123!
 }
 ```
 
-или:
+or:
 
 ```json
 {
@@ -105,15 +106,15 @@ password: Admin123!
 }
 ```
 
-Режимы:
+Runtime profiles:
 
-- SQLite + Local storage + Memory cache: локальная разработка через `dotnet run`.
-- PostgreSQL + MinIO + Redis cache: Docker/production-like профиль через `docker compose`.
-- Кэшируются публичные ответы базы знаний и `/api/reports/overview`; write-операции сбрасывают соответствующие cache group.
+- SQLite + Local storage + Memory cache: local development through `dotnet run`.
+- PostgreSQL + MinIO + Redis cache: Docker and production-like profile through `docker compose`.
+- Public knowledge base responses and `/api/reports/overview` are cached; write operations invalidate the related cache group.
 
-## XML Documentation
+## XML And OpenAPI Documentation
 
-The main public API surface generates XML documentation during build and publish:
+The public API surface generates XML documentation during build and publish:
 
 - `SupportPilot.Api`
 - `SupportPilot.Application`
@@ -121,7 +122,7 @@ The main public API surface generates XML documentation during build and publish
 - `SupportPilot.Domain`
 - `SupportPilot.Notifications.Worker`
 
-Swagger includes XML comments from API, Contracts, Domain and Application assemblies when the files are present in the application output directory. This documents endpoint groups, auth/ticket/admin/knowledge-base/report/notification use cases, request/response DTOs, domain entities, enums and application ports. Minimal API routes that need route-level text use explicit OpenAPI metadata through `WithRouteDocs(...)`.
+Swagger includes XML comments from API, Contracts, Domain and Application assemblies when the XML files are present in the application output directory. Route-level OpenAPI metadata is added through `WithRouteDocs(...)` for authentication, ticket, administration, knowledge base, report and notification endpoints.
 
 Build output location:
 
@@ -150,7 +151,7 @@ npm run dev
 
 The dev server runs on `http://localhost:5173` and proxies `/api` plus `/hubs` to the backend. By default it targets `http://localhost:5295`.
 
-Use Docker API instead:
+Use the Docker API instead:
 
 ```powershell
 $env:SUPPORTPILOT_API_TARGET="http://localhost:8080"
@@ -161,13 +162,13 @@ Current frontend scope includes login, JWT session persistence, protected layout
 
 ## Docker Compose
 
-Скопируйте `.env.example` в `.env` при необходимости и запустите:
+Copy `.env.example` to `.env` if you need local overrides, then run:
 
 ```powershell
 docker compose up --build
 ```
 
-Compose переключает API на PostgreSQL, MinIO, RabbitMQ и Redis cache:
+Compose switches the API to PostgreSQL, MinIO, RabbitMQ and Redis cache:
 
 ```text
 Database__Provider=PostgreSql
@@ -176,10 +177,10 @@ Notifications__Transport=RabbitMQ
 Cache__Provider=Redis
 ```
 
-Сервисы:
+Services:
 
 - API: `http://localhost:8080`
-- Notifications worker: отдельный контейнер без HTTP-порта.
+- Notifications worker: standalone container without an HTTP port.
 - PostgreSQL: `localhost:5432`
 - MinIO console: `http://localhost:9001`
 - RabbitMQ management: `http://localhost:15672`
@@ -187,33 +188,33 @@ Cache__Provider=Redis
 
 Health checks:
 
-- `GET /api/health` - все проверки.
-- `GET /api/health/ready` - БД, Redis, RabbitMQ, object storage.
-- `GET /api/health/live` - liveness без внешних зависимостей.
+- `GET /api/health`: all checks.
+- `GET /api/health/ready`: database, Redis, RabbitMQ and object storage readiness.
+- `GET /api/health/live`: liveness without external dependencies.
 
 ## EF Core
 
-Применить миграции вручную:
+Apply migrations manually:
 
 ```powershell
 dotnet ef database update --project src/SupportPilot.Infrastructure --startup-project src/SupportPilot.Api
 ```
 
-Создать новую миграцию:
+Create a new migration:
 
 ```powershell
 dotnet ef migrations add MigrationName --project src/SupportPilot.Infrastructure --startup-project src/SupportPilot.Api --output-dir Data/Migrations
 ```
 
-На старте API вызывает `Database.MigrateAsync()` и затем выполняет seed базовых ролей, SLA, категорий, FAQ и admin-пользователя.
+On startup, the API calls `Database.MigrateAsync()` and then seeds baseline roles, SLA policies, ticket categories, FAQ content and the default admin user.
 
-## Архитектура
+## Architecture
 
 ```text
 src/
   SupportPilot.Api             HTTP endpoints, Swagger, auth policies, SignalR adapter
   SupportPilot.Application     use cases and application ports
-  SupportPilot.Contracts       request/response DTO
+  SupportPilot.Contracts       request/response DTOs
   SupportPilot.Domain          entities, enums and core business concepts
   SupportPilot.Infrastructure  EF Core, PostgreSQL/SQLite, JWT, password hashing, file storage, notification adapters
   SupportPilot.Notifications.Worker  RabbitMQ consumer, notification persistence, SLA monitor host
@@ -221,7 +222,7 @@ tests/
   SupportPilot.IntegrationTests
 ```
 
-Зависимости направлены внутрь:
+Dependencies point inward:
 
 ```text
 Api -> Application / Contracts / Infrastructure
@@ -230,37 +231,35 @@ Application -> Domain / Contracts
 Contracts -> Domain
 ```
 
-Ticket workflows, support lookups and attachment download authorization live in `SupportPilot.Application/Tickets/TicketUseCases.cs`; knowledge base workflows live in `SupportPilot.Application/KnowledgeBase/KnowledgeBaseUseCases.cs`; support dashboard report queries live in `SupportPilot.Application/Reports/ReportUseCases.cs`; notification inbox workflows live in `SupportPilot.Application/Notifications/NotificationUseCases.cs`; audit-log reads are exposed through `SupportPilot.Application/Admin/AdminUseCases.cs`. API endpoints stay as request/response adapters and map `ApplicationResult<T>` to HTTP responses.
+Ticket workflows, support lookups and attachment download authorization live in `SupportPilot.Application/Tickets/TicketUseCases.cs`. Knowledge base workflows live in `SupportPilot.Application/KnowledgeBase/KnowledgeBaseUseCases.cs`. Support dashboard report queries live in `SupportPilot.Application/Reports/ReportUseCases.cs`. Notification inbox workflows live in `SupportPilot.Application/Notifications/NotificationUseCases.cs`. Audit-log reads are exposed through `SupportPilot.Application/Admin/AdminUseCases.cs`.
+
+API endpoints stay as request/response adapters and map `ApplicationResult<T>` to HTTP responses. Business logic for authentication lives in `SupportPilot.Application/Auth/AuthUseCases.cs`; administration of users, ticket categories and SLA policies lives in `SupportPilot.Application/Admin/AdminUseCases.cs`.
+
+Application defines ports:
+
+- `IUserAccountStore`: account, role and audit-log access.
+- `IPasswordHasher`: password hashing and verification.
+- `ITokenService`: access token issuing.
+- `IFileStorage`: attachment file operations.
+- `INotificationPublisher`: notification publishing to the local database or RabbitMQ.
+- `IApplicationCache`: read-heavy application response caching through memory cache or Redis.
+
+Infrastructure contains port implementations:
+
+- `UserAccountStore`: EF Core access to users and roles.
+- `AspNetPasswordHasher`: hashing through ASP.NET Core Identity.
+- `JwtTokenService`: JWT generation.
+- `LocalFileStorage` and `MinioFileStorage`: file storage providers.
+- `DatabaseNotificationPublisher`: local notification mode without RabbitMQ.
+- `RabbitMqNotificationPublisher`: notification event publishing to RabbitMQ.
+- `RabbitMqNotificationWorker`: queue consumer that stores notifications in the database.
+- `DistributedApplicationCache`: cache abstraction over `IDistributedCache`, memory-backed locally and Redis-backed in Docker.
+
+In local mode, the API stores notifications directly through `Notifications:Transport=Database`. In Docker and production-like mode, the API publishes events to RabbitMQ through `Notifications:Transport=RabbitMQ`, and `SupportPilot.Notifications.Worker` stores them in the `Notifications` table.
 
 Storage-optimized notification inbox and audit-log queries are exposed to Application through `INotificationInboxStore` and `IAuditLogReader`, with EF Core implementations in Infrastructure.
 
-HTTP-слой принимает запросы и возвращает ответы. Бизнес-логика авторизации находится в `SupportPilot.Application/Auth/AuthUseCases.cs`, а бизнес-логика администрирования пользователей, категорий тикетов и SLA policies - в `SupportPilot.Application/Admin/AdminUseCases.cs`.
-
-Application определяет порты:
-
-- `IUserAccountStore` - доступ к учетным записям, ролям и audit log.
-- `IPasswordHasher` - хеширование и проверка пароля.
-- `ITokenService` - выпуск access token.
-- `IFileStorage` - работа с файлами вложений.
-- `INotificationPublisher` - публикация уведомлений в локальную БД или RabbitMQ.
-- `IApplicationCache` - кэширование read-heavy application responses через Memory cache или Redis.
-
-Infrastructure содержит реализации портов:
-
-- `UserAccountStore` - EF Core-доступ к пользователям и ролям.
-- `AspNetPasswordHasher` - хеширование через ASP.NET Core Identity.
-- `JwtTokenService` - генерация JWT.
-- `LocalFileStorage` и `MinioFileStorage` - файловое хранилище.
-- `DatabaseNotificationPublisher` - локальный режим уведомлений без RabbitMQ.
-- `RabbitMqNotificationPublisher` - публикация notification-событий в очередь.
-- `RabbitMqNotificationWorker` - чтение очереди и сохранение уведомлений в БД.
-- `DistributedApplicationCache` - cache abstraction поверх `IDistributedCache`, локально memory-backed, в Docker Redis-backed.
-
-В локальном режиме API сохраняет уведомления напрямую в БД через `Notifications:Transport=Database`. В Docker/production-like режиме API публикует события в RabbitMQ через `Notifications:Transport=RabbitMQ`, а `SupportPilot.Notifications.Worker` сохраняет их в таблицу `Notifications`.
-
-Единый результат application use cases возвращается через `ApplicationResult<T>`, а API маппит ошибки в HTTP-коды: validation, not found, unauthorized, forbidden и conflict.
-
-## Основные endpoint-группы
+## Main Endpoint Groups
 
 - `POST /api/auth/register`
 - `POST /api/auth/login`
@@ -299,7 +298,7 @@ Infrastructure содержит реализации портов:
 - `GET /api/notifications`
 - `POST /api/notifications/{id}/read`
 
-## Проверки
+## Validation
 
 ```powershell
 dotnet build SupportPilot.sln
@@ -309,6 +308,12 @@ dotnet publish src/SupportPilot.Api/SupportPilot.Api.csproj -c Release -o artifa
 dotnet publish src/SupportPilot.Notifications.Worker/SupportPilot.Notifications.Worker.csproj -c Release -o artifacts/notifications-worker
 ```
 
-## Следующие технические шаги
+## Next Technical Steps
 
-- Add route-level OpenAPI metadata for ticket, knowledge-base, report and notification endpoints so Swagger documents the full API surface consistently.
+- Add dedicated integration tests for OpenAPI generation and a minimal Swagger smoke check.
+- Move remaining high-volume dashboard and ticket read paths behind query-specific Application ports if database load grows.
+- Add API problem-details response contracts for consistent error documentation.
+
+## License
+
+This project is licensed under the MIT License. See [LICENSE](LICENSE).

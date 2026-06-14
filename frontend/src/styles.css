@@ -857,6 +857,160 @@ h2 {
   width: auto;
 }
 
+.admin-shell {
+  display: grid;
+  gap: 1rem;
+}
+
+.admin-hero,
+.admin-panel {
+  border: 1px solid var(--line);
+  background: rgba(255, 250, 240, 0.68);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(18px);
+}
+
+.admin-hero {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: clamp(1.4rem, 4vw, 2.6rem);
+  border-radius: 2rem;
+}
+
+.admin-hero h2 {
+  max-width: 15ch;
+  margin-top: 0.65rem;
+  font-size: clamp(2.1rem, 5vw, 4rem);
+  line-height: 0.94;
+}
+
+.admin-hero p {
+  max-width: 42rem;
+  color: var(--ink-muted);
+}
+
+.admin-hero button,
+.admin-form button {
+  border: 0;
+  border-radius: 999px;
+  padding: 0.75rem 1rem;
+  color: var(--paper-strong);
+  font-weight: 800;
+  background: var(--moss-deep);
+}
+
+.admin-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 24rem), 1fr));
+  align-items: start;
+  gap: 1rem;
+}
+
+.admin-panel {
+  display: grid;
+  align-content: start;
+  gap: 1rem;
+  border-radius: 1.4rem;
+  padding: 1rem;
+}
+
+.admin-panel h3 {
+  margin: 0;
+  font-family: "Space Grotesk", sans-serif;
+}
+
+.admin-form,
+.admin-list {
+  display: grid;
+  align-content: start;
+  gap: 0.85rem;
+}
+
+.admin-form label {
+  display: grid;
+  gap: 0.4rem;
+  color: var(--ink-muted);
+  font-weight: 700;
+}
+
+.admin-form input,
+.admin-form select,
+.admin-form textarea {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 0.9rem;
+  padding: 0.75rem 0.85rem;
+  color: var(--ink);
+  font: inherit;
+  background: rgba(255, 255, 255, 0.68);
+}
+
+.admin-form textarea {
+  min-height: 6rem;
+  resize: vertical;
+}
+
+.admin-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  width: 100%;
+  min-height: 5.7rem;
+  border: 1px solid var(--line);
+  border-radius: 1rem;
+  padding: 0.85rem;
+  color: var(--ink);
+  text-align: left;
+  background: rgba(255, 255, 255, 0.44);
+}
+
+.admin-row span,
+.admin-row small {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.admin-row small {
+  color: var(--ink-muted);
+}
+
+.admin-row em {
+  flex: 0 0 auto;
+  border-radius: 999px;
+  padding: 0.3rem 0.65rem;
+  color: var(--moss-deep);
+  font-size: 0.78rem;
+  font-style: normal;
+  font-weight: 800;
+  background: rgba(184, 243, 212, 0.52);
+}
+
+.admin-row-active {
+  border-color: rgba(40, 77, 64, 0.58);
+  background: rgba(184, 243, 212, 0.4);
+  box-shadow: 7px 7px 0 rgba(40, 77, 64, 0.1);
+}
+
+.admin-role-grid,
+.admin-two-col {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem;
+}
+
+.admin-check {
+  display: inline-flex !important;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.admin-check input {
+  width: auto;
+}
+
 .tickets-workspace {
   display: grid;
   grid-template-columns: minmax(20rem, 0.85fr) minmax(0, 1.45fr);
@@ -1193,6 +1347,7 @@ h2 {
   .view-grid,
   .dashboard-grid,
   .dashboard-metrics,
+  .admin-grid,
   .kb-layout,
   .kb-admin-grid,
   .tickets-workspace,
@@ -1231,6 +1386,7 @@ h2 {
   }
 
   .detail-header,
+  .admin-hero,
   .dashboard-hero,
   .kb-hero,
   .kb-admin header,
@@ -1243,6 +1399,8 @@ h2 {
     display: grid;
   }
 
+  .admin-role-grid,
+  .admin-two-col,
   .kb-filter-row {
     grid-template-columns: 1fr;
   }

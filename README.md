@@ -157,7 +157,7 @@ $env:SUPPORTPILOT_API_TARGET="http://localhost:8080"
 npm run dev
 ```
 
-Current frontend scope includes login, JWT session persistence, protected layout, health indicator, realtime dashboard, ticket workflows and knowledge base workflows: public article search/reading, support-staff category management, draft editing and publishing.
+Current frontend scope includes login, JWT session persistence, protected layout, health indicator, realtime dashboard, ticket workflows, knowledge base workflows and admin management for users, roles, ticket categories and SLA policies.
 
 ## Docker Compose
 
@@ -282,6 +282,14 @@ Infrastructure содержит реализации портов:
 - `POST /api/kb/admin/articles`
 - `PUT /api/kb/admin/articles/{id}`
 - `GET /api/reports/overview`
+- `GET /api/admin/users`
+- `PUT /api/admin/users/{id}`
+- `GET /api/admin/roles`
+- `GET /api/admin/categories`
+- `POST /api/admin/categories`
+- `PUT /api/admin/categories/{id}`
+- `GET /api/admin/sla-policies`
+- `PUT /api/admin/sla-policies/{id}`
 - `GET /api/admin/audit`
 
 ## Проверки
@@ -289,10 +297,11 @@ Infrastructure содержит реализации портов:
 ```powershell
 dotnet build SupportPilot.sln
 dotnet test SupportPilot.sln
+npm --prefix frontend run build
 dotnet publish src/SupportPilot.Api/SupportPilot.Api.csproj -c Release -o artifacts/api
 dotnet publish src/SupportPilot.Notifications.Worker/SupportPilot.Notifications.Worker.csproj -c Release -o artifacts/notifications-worker
 ```
 
 ## Следующие технические шаги
 
-- Расширить админку пользователями, ролями, категориями тикетов и SLA policies.
+- Add a support-staff assignee lookup endpoint instead of reusing Admin-only `/api/admin/users` from ticket workflows.

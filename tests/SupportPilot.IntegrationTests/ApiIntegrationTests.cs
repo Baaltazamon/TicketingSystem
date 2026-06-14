@@ -159,6 +159,112 @@ public sealed class ApiIntegrationTests(SupportPilotApiFactory factory) : IClass
     }
 
     [Fact]
+    public async Task AdminCanUpdateUserRolesAndActiveState()
+    {
+        var admin = await CreateAuthenticatedClientAsync();
+        var userId = await CreateUserAsync("managed-user", "Customer");
+
+        var update = await admin.PutAsJsonAsync($"/api/admin/users/{userId}", new
+        {
+            displayName = "Managed Agent",
+            isActive = false,
+            roles = new[] { "Agent" }
+        });
+
+        update.EnsureSuccessStatusCode();
+        using var json = await JsonDocument.ParseAsync(await update.Content.ReadAsStreamAsync());
+        Assert.Equal("Managed Agent", json.RootElement.GetProperty("displayName").GetString());
+        Assert.False(json.RootElement.GetProperty("isActive").GetBoolean());
+        Assert.Contains(json.RootElement.GetProperty("roles").EnumerateArray(), role => role.GetString() == "Agent");
+
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<SupportPilotDbContext>();
+        var user = await db.Users
+            .Include(x => x.UserRoles)
+            .ThenInclude(x => x.Role)
+            .SingleAsync(x => x.Id == userId);
+        Assert.False(user.IsActive);
+        Assert.Equal("Managed Agent", user.DisplayName);
+        Assert.Contains(user.UserRoles, role => role.Role.Name == "Agent");
+        Assert.DoesNotContain(user.UserRoles, role => role.Role.Name == "Customer");
+    }
+
+    [Fact]
+    public async Task AdminCannotDisableLastActiveAdministrator()
+    {
+        var admin = await CreateAuthenticatedClientAsync();
+        Guid adminId;
+
+        using (var scope = factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<SupportPilotDbContext>();
+            adminId = await db.Users
+                .Where(x => x.Email == "admin@supportpilot.local")
+                .Select(x => x.Id)
+                .SingleAsync();
+        }
+
+        var response = await admin.PutAsJsonAsync($"/api/admin/users/{adminId}", new
+        {
+            displayName = "SupportPilot Admin",
+            isActive = false,
+            roles = new[] { "Admin" }
+        });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task AdminCanManageTicketCategoriesAndSlaPolicies()
+    {
+        var admin = await CreateAuthenticatedClientAsync();
+        var categoryName = $"Managed {Guid.NewGuid():N}";
+
+        var categoryCreate = await admin.PostAsJsonAsync("/api/admin/categories", new
+        {
+            name = categoryName,
+            description = "Created from admin integration test",
+            isActive = true
+        });
+        Assert.Equal(HttpStatusCode.Created, categoryCreate.StatusCode);
+        using var categoryJson = await JsonDocument.ParseAsync(await categoryCreate.Content.ReadAsStreamAsync());
+        var categoryId = categoryJson.RootElement.GetProperty("id").GetGuid();
+
+        var categoryUpdate = await admin.PutAsJsonAsync($"/api/admin/categories/{categoryId}", new
+        {
+            name = categoryName,
+            description = "Updated from admin integration test",
+            isActive = false
+        });
+        categoryUpdate.EnsureSuccessStatusCode();
+        using var updatedCategoryJson = await JsonDocument.ParseAsync(await categoryUpdate.Content.ReadAsStreamAsync());
+        Assert.False(updatedCategoryJson.RootElement.GetProperty("isActive").GetBoolean());
+
+        Guid policyId;
+        using (var scope = factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<SupportPilotDbContext>();
+            policyId = await db.SlaPolicies
+                .Where(x => x.Priority == TicketPriority.High)
+                .Select(x => x.Id)
+                .SingleAsync();
+        }
+
+        var slaUpdate = await admin.PutAsJsonAsync($"/api/admin/sla-policies/{policyId}", new
+        {
+            name = "High Managed",
+            priority = TicketPriority.High,
+            firstResponseMinutes = 90,
+            resolutionMinutes = 720,
+            isActive = true
+        });
+        slaUpdate.EnsureSuccessStatusCode();
+        using var slaJson = await JsonDocument.ParseAsync(await slaUpdate.Content.ReadAsStreamAsync());
+        Assert.Equal(90, slaJson.RootElement.GetProperty("firstResponseMinutes").GetInt32());
+        Assert.Equal(720, slaJson.RootElement.GetProperty("resolutionMinutes").GetInt32());
+    }
+
+    [Fact]
     public async Task KnowledgeBaseAdminChangesInvalidatePublicCache()
     {
         var admin = await CreateAuthenticatedClientAsync();

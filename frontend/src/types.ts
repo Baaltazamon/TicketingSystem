@@ -5,6 +5,11 @@ export type UserProfile = {
   roles: string[];
 };
 
+export type AdminUser = UserProfile & {
+  isActive: boolean;
+  createdAt: string;
+};
+
 export type AuthResponse = {
   token: string;
   user: UserProfile;
@@ -82,6 +87,15 @@ export type TicketCategory = {
   isActive: boolean;
 };
 
+export type SlaPolicy = {
+  id: string;
+  name: string;
+  priority: TicketPriority;
+  firstResponseMinutes: number;
+  resolutionMinutes: number;
+  isActive: boolean;
+};
+
 export type TicketQuery = {
   status?: TicketStatus | "";
   priority?: TicketPriority | "";
@@ -97,6 +111,26 @@ export type CreateTicketInput = {
   description: string;
   categoryId: string;
   priority: number;
+};
+
+export type UpdateAdminUserInput = {
+  displayName: string;
+  isActive: boolean;
+  roles: string[];
+};
+
+export type UpsertTicketCategoryInput = {
+  name: string;
+  description?: string | null;
+  isActive: boolean;
+};
+
+export type UpsertSlaPolicyInput = {
+  name: string;
+  priority: number;
+  firstResponseMinutes: number;
+  resolutionMinutes: number;
+  isActive: boolean;
 };
 
 export type DashboardBucket = {

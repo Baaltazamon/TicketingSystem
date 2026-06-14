@@ -91,6 +91,23 @@ public sealed record TicketDetailResponse(
 public sealed record UserProfileShort(Guid Id, string DisplayName, string Email);
 
 /// <summary>
+/// User row returned by administration endpoints.
+/// </summary>
+/// <param name="Id">User identifier.</param>
+/// <param name="Email">Normalized user email address.</param>
+/// <param name="DisplayName">Display name shown in support workflows.</param>
+/// <param name="IsActive">Whether the account can authenticate.</param>
+/// <param name="CreatedAt">UTC timestamp when the account was created.</param>
+/// <param name="Roles">Role names assigned to the user.</param>
+public sealed record AdminUserResponse(
+    Guid Id,
+    string Email,
+    string DisplayName,
+    bool IsActive,
+    DateTimeOffset CreatedAt,
+    string[] Roles);
+
+/// <summary>
 /// Ticket comment or internal note visible to the current user.
 /// </summary>
 /// <param name="Id">Comment identifier.</param>

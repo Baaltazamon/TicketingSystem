@@ -7,6 +7,7 @@ import {
   login,
   storeToken
 } from "./api";
+import { AdminScreen } from "./AdminScreen";
 import { DashboardScreen } from "./DashboardScreen";
 import { KnowledgeBaseScreen } from "./KnowledgeBaseScreen";
 import { TicketsScreen } from "./TicketsScreen";
@@ -248,25 +249,10 @@ function AppShell({
           {activeView === "dashboard" ? <DashboardScreen token={token} user={user} /> : null}
           {activeView === "tickets" ? <TicketsScreen token={token} user={user} /> : null}
           {activeView === "knowledge-base" ? <KnowledgeBaseScreen token={token} user={user} /> : null}
-          {activeView === "admin" ? <AdminPreview user={user} /> : null}
+          {activeView === "admin" ? <AdminScreen token={token} user={user} /> : null}
         </main>
       </div>
     </div>
-  );
-}
-
-function AdminPreview({ user }: { user: UserProfile }) {
-  const canAdmin = user.roles.includes("Admin");
-
-  return (
-    <RoadmapPanel
-      title={canAdmin ? "Admin shell ready" : "Admin access preview"}
-      items={[
-        "User, role, category and SLA policy surfaces will stay behind role-aware UI.",
-        "Audit, SLA policy and category screens should be added as separate focused changes.",
-        canAdmin ? "Current user has Admin role." : "Current user does not have Admin role."
-      ]}
-    />
   );
 }
 
@@ -276,19 +262,6 @@ function MetricCard({ label, value, detail }: { label: string; value: string; de
       <span>{label}</span>
       <strong>{value}</strong>
       <small>{detail}</small>
-    </article>
-  );
-}
-
-function RoadmapPanel({ title, items }: { title: string; items: string[] }) {
-  return (
-    <article className="roadmap-panel">
-      <h2>{title}</h2>
-      <ul>
-        {items.map((item) => (
-          <li key={item}>{item}</li>
-        ))}
-      </ul>
     </article>
   );
 }

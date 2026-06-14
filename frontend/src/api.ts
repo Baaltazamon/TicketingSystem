@@ -1,4 +1,5 @@
 import type {
+  AdminUser,
   AuthResponse,
   CreateTicketInput,
   DashboardOverview,
@@ -7,10 +8,14 @@ import type {
   KnowledgeBaseArticleListItem,
   KnowledgeBaseArticleQuery,
   KnowledgeBaseCategory,
+  SlaPolicy,
   TicketCategory,
   TicketDetail,
   TicketListItem,
   TicketQuery,
+  UpdateAdminUserInput,
+  UpsertSlaPolicyInput,
+  UpsertTicketCategoryInput,
   UpsertKnowledgeBaseArticleInput,
   UpsertKnowledgeBaseCategoryInput,
   UserProfile
@@ -125,6 +130,65 @@ export async function getTicketCategories(token: string): Promise<TicketCategory
 
 export async function getUsers(token: string): Promise<UserProfile[]> {
   return request<UserProfile[]>("/admin/users", { token });
+}
+
+export async function getAdminUsers(token: string): Promise<AdminUser[]> {
+  return request<AdminUser[]>("/admin/users", { token });
+}
+
+export async function getAdminRoles(token: string): Promise<string[]> {
+  return request<string[]>("/admin/roles", { token });
+}
+
+export async function updateAdminUser(token: string, userId: string, input: UpdateAdminUserInput): Promise<AdminUser> {
+  return request<AdminUser>(`/admin/users/${userId}`, {
+    method: "PUT",
+    token,
+    body: JSON.stringify(input)
+  });
+}
+
+export async function getAdminTicketCategories(token: string): Promise<TicketCategory[]> {
+  return request<TicketCategory[]>("/admin/categories", { token });
+}
+
+export async function createAdminTicketCategory(
+  token: string,
+  input: UpsertTicketCategoryInput
+): Promise<TicketCategory> {
+  return request<TicketCategory>("/admin/categories", {
+    method: "POST",
+    token,
+    body: JSON.stringify(input)
+  });
+}
+
+export async function updateAdminTicketCategory(
+  token: string,
+  categoryId: string,
+  input: UpsertTicketCategoryInput
+): Promise<TicketCategory> {
+  return request<TicketCategory>(`/admin/categories/${categoryId}`, {
+    method: "PUT",
+    token,
+    body: JSON.stringify(input)
+  });
+}
+
+export async function getAdminSlaPolicies(token: string): Promise<SlaPolicy[]> {
+  return request<SlaPolicy[]>("/admin/sla-policies", { token });
+}
+
+export async function updateAdminSlaPolicy(
+  token: string,
+  policyId: string,
+  input: UpsertSlaPolicyInput
+): Promise<SlaPolicy> {
+  return request<SlaPolicy>(`/admin/sla-policies/${policyId}`, {
+    method: "PUT",
+    token,
+    body: JSON.stringify(input)
+  });
 }
 
 export async function getDashboardOverview(token: string): Promise<DashboardOverview> {

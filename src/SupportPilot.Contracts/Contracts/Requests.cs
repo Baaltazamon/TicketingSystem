@@ -107,6 +107,14 @@ public sealed record UpsertSlaPolicyRequest(
     bool IsActive);
 
 /// <summary>
+/// Request used by administrators to update a user's administrative state.
+/// </summary>
+/// <param name="DisplayName">Human-readable display name shown in support workflows.</param>
+/// <param name="IsActive">Whether the user can authenticate and use protected endpoints.</param>
+/// <param name="Roles">Role names assigned to the user.</param>
+public sealed record UpdateAdminUserRequest(string DisplayName, bool IsActive, string[] Roles);
+
+/// <summary>
 /// Request used to create or update a knowledge base category.
 /// </summary>
 /// <param name="Name">Category name.</param>

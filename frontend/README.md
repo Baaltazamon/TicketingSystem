@@ -57,6 +57,8 @@ The frontend currently contains:
 - attachment upload, download and deletion;
 - knowledge base article search and reading;
 - support-staff knowledge base category management;
-- support-staff draft editing and publishing.
+- support-staff draft editing and publishing;
+- admin user and role management;
+- admin ticket category and SLA policy management.
 
 Redis-backed backend caching belongs to a separate PR.

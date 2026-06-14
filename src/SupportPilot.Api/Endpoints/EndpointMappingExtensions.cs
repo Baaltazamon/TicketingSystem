@@ -266,21 +266,91 @@ public static class EndpointMappingExtensions
     {
         var group = app.MapGroup("/api/admin").WithTags("Admin").RequireAuthorization("AdminOnly");
 
-        group.MapGet("/users", async (SupportPilotDbContext db) =>
+        group.MapGet("/users", async (SupportPilotDbContext db, CancellationToken cancellationToken) =>
         {
             var users = await db.Users
                 .AsNoTracking()
                 .Include(x => x.UserRoles)
                 .ThenInclude(x => x.Role)
                 .OrderBy(x => x.Email)
-                .Select(x => ToProfile(x))
-                .ToListAsync();
+                .Select(x => ToAdminUser(x))
+                .ToListAsync(cancellationToken);
 
             return Results.Ok(users);
         });
 
-        group.MapGet("/categories", async (SupportPilotDbContext db) =>
-            Results.Ok(await db.TicketCategories.AsNoTracking().OrderBy(x => x.Name).ToListAsync()));
+        group.MapGet("/roles", async (SupportPilotDbContext db, CancellationToken cancellationToken) =>
+            Results.Ok(await db.Roles
+                .AsNoTracking()
+                .OrderBy(x => x.Name)
+                .Select(x => x.Name)
+                .ToListAsync(cancellationToken)));
+
+        group.MapPut("/users/{id:guid}", async (
+            Guid id,
+            UpdateAdminUserRequest request,
+            SupportPilotDbContext db,
+            CancellationToken cancellationToken) =>
+        {
+            var user = await db.Users
+                .Include(x => x.UserRoles)
+                .ThenInclude(x => x.Role)
+                .SingleOrDefaultAsync(x => x.Id == id, cancellationToken);
+            if (user is null)
+            {
+                return Results.NotFound();
+            }
+
+            var requestedRoleNames = request.Roles
+                .Select(x => x.Trim())
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+            if (requestedRoleNames.Length == 0)
+            {
+                return Results.BadRequest(new { message = "At least one role is required." });
+            }
+
+            var allRoles = await db.Roles.OrderBy(x => x.Name).ToListAsync(cancellationToken);
+            var roles = allRoles
+                .Where(x => requestedRoleNames.Contains(x.Name, StringComparer.OrdinalIgnoreCase))
+                .ToList();
+            var unknownRoles = requestedRoleNames
+                .Except(roles.Select(x => x.Name), StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+            if (unknownRoles.Length > 0)
+            {
+                return Results.BadRequest(new { message = $"Unknown roles: {string.Join(", ", unknownRoles)}." });
+            }
+
+            var userIsActiveAdmin = user.IsActive && user.UserRoles.Any(x => x.Role.Name == "Admin");
+            var userWillRemainActiveAdmin = request.IsActive && roles.Any(x => x.Name == "Admin");
+            if (userIsActiveAdmin && !userWillRemainActiveAdmin)
+            {
+                var activeAdminCount = await db.Users.CountAsync(
+                    x => x.IsActive && x.UserRoles.Any(role => role.Role.Name == "Admin"),
+                    cancellationToken);
+                if (activeAdminCount <= 1)
+                {
+                    return Results.BadRequest(new { message = "Cannot remove or deactivate the last active administrator." });
+                }
+            }
+
+            user.DisplayName = request.DisplayName.Trim();
+            user.IsActive = request.IsActive;
+            user.UserRoles.Clear();
+            foreach (var role in roles)
+            {
+                user.UserRoles.Add(new UserRole { UserId = user.Id, RoleId = role.Id, Role = role });
+            }
+
+            await db.SaveChangesAsync(cancellationToken);
+
+            return Results.Ok(ToAdminUser(user));
+        });
+
+        group.MapGet("/categories", async (SupportPilotDbContext db, CancellationToken cancellationToken) =>
+            Results.Ok(await db.TicketCategories.AsNoTracking().OrderBy(x => x.Name).ToListAsync(cancellationToken)));
 
         group.MapPost("/categories", async (
             UpsertCategoryRequest request,
@@ -321,12 +391,17 @@ public static class EndpointMappingExtensions
             return Results.Ok(category);
         });
 
-        group.MapGet("/sla-policies", async (SupportPilotDbContext db) =>
-            Results.Ok(await db.SlaPolicies.AsNoTracking().OrderByDescending(x => x.Priority).ToListAsync()));
+        group.MapGet("/sla-policies", async (SupportPilotDbContext db, CancellationToken cancellationToken) =>
+            Results.Ok(await db.SlaPolicies.AsNoTracking().OrderByDescending(x => x.Priority).ToListAsync(cancellationToken)));
 
-        group.MapPut("/sla-policies/{id:guid}", async (Guid id, UpsertSlaPolicyRequest request, SupportPilotDbContext db) =>
+        group.MapPut("/sla-policies/{id:guid}", async (
+            Guid id,
+            UpsertSlaPolicyRequest request,
+            SupportPilotDbContext db,
+            IApplicationCache cache,
+            CancellationToken cancellationToken) =>
         {
-            var policy = await db.SlaPolicies.SingleOrDefaultAsync(x => x.Id == id);
+            var policy = await db.SlaPolicies.SingleOrDefaultAsync(x => x.Id == id, cancellationToken);
             if (policy is null)
             {
                 return Results.NotFound();
@@ -337,7 +412,8 @@ public static class EndpointMappingExtensions
             policy.FirstResponseMinutes = request.FirstResponseMinutes;
             policy.ResolutionMinutes = request.ResolutionMinutes;
             policy.IsActive = request.IsActive;
-            await db.SaveChangesAsync();
+            await db.SaveChangesAsync(cancellationToken);
+            await cache.InvalidateGroupAsync(CacheGroups.Reports, cancellationToken);
             return Results.Ok(policy);
         });
 
@@ -854,6 +930,15 @@ public static class EndpointMappingExtensions
 
     private static UserProfileResponse ToProfile(User user) =>
         new(user.Id, user.Email, user.DisplayName, user.UserRoles.Select(x => x.Role.Name).Order().ToArray());
+
+    private static AdminUserResponse ToAdminUser(User user) =>
+        new(
+            user.Id,
+            user.Email,
+            user.DisplayName,
+            user.IsActive,
+            user.CreatedAt,
+            user.UserRoles.Select(x => x.Role.Name).Order().ToArray());
 
     private static KnowledgeBaseArticleResponse ToKnowledgeBaseArticleResponse(KnowledgeBaseArticle article) =>
         new(

@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using SupportPilot.Application.Admin;
 using SupportPilot.Application.Auth;
 using SupportPilot.Application.Tickets;
 
@@ -16,6 +17,7 @@ public static class DependencyInjection
     /// <returns>The same service collection so registrations can be chained.</returns>
     public static IServiceCollection AddApplication(this IServiceCollection services)
     {
+        services.AddScoped<AdminUseCases>();
         services.AddScoped<AuthUseCases>();
         services.AddScoped<TicketUseCases>();
         return services;

@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using SupportPilot.Application.Abstractions;
+using SupportPilot.Application.Admin;
 using SupportPilot.Application.Auth;
 using SupportPilot.Application.Common;
 using SupportPilot.Application.Tickets;
@@ -281,156 +282,97 @@ public static class EndpointMappingExtensions
     {
         var group = app.MapGroup("/api/admin").WithTags("Admin").RequireAuthorization("AdminOnly");
 
-        group.MapGet("/users", async (SupportPilotDbContext db, CancellationToken cancellationToken) =>
-        {
-            var users = await db.Users
-                .AsNoTracking()
-                .Include(x => x.UserRoles)
-                .ThenInclude(x => x.Role)
-                .OrderBy(x => x.Email)
-                .Select(x => ToAdminUser(x))
-                .ToListAsync(cancellationToken);
+        group.MapGet("/users", async (AdminUseCases admin, CancellationToken cancellationToken) =>
+            Results.Ok(await admin.ListUsersAsync(cancellationToken)))
+            .WithRouteDocs(
+                "List users for administration",
+                "Returns all users with roles, active state and creation timestamp. Requires the Admin role.")
+            .Produces<IReadOnlyList<AdminUserResponse>>();
 
-            return Results.Ok(users);
-        });
-
-        group.MapGet("/roles", async (SupportPilotDbContext db, CancellationToken cancellationToken) =>
-            Results.Ok(await db.Roles
-                .AsNoTracking()
-                .OrderBy(x => x.Name)
-                .Select(x => x.Name)
-                .ToListAsync(cancellationToken)));
+        group.MapGet("/roles", async (AdminUseCases admin, CancellationToken cancellationToken) =>
+            Results.Ok(await admin.ListRolesAsync(cancellationToken)))
+            .WithRouteDocs(
+                "List application roles",
+                "Returns role names that can be assigned by administrators.")
+            .Produces<IReadOnlyList<string>>();
 
         group.MapPut("/users/{id:guid}", async (
             Guid id,
             UpdateAdminUserRequest request,
-            SupportPilotDbContext db,
+            AdminUseCases admin,
             CancellationToken cancellationToken) =>
         {
-            var user = await db.Users
-                .Include(x => x.UserRoles)
-                .ThenInclude(x => x.Role)
-                .SingleOrDefaultAsync(x => x.Id == id, cancellationToken);
-            if (user is null)
-            {
-                return Results.NotFound();
-            }
+            var result = await admin.UpdateUserAsync(id, request, cancellationToken);
+            return result.IsSuccess ? Results.Ok(result.Value) : ToHttpResult(result);
+        })
+            .WithRouteDocs(
+                "Update an administrative user",
+                "Updates display name, active state and assigned roles. The last active administrator is protected from deactivation or role removal.")
+            .Produces<AdminUserResponse>()
+            .Produces(StatusCodes.Status400BadRequest)
+            .Produces(StatusCodes.Status404NotFound);
 
-            var requestedRoleNames = request.Roles
-                .Select(x => x.Trim())
-                .Where(x => !string.IsNullOrWhiteSpace(x))
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .ToArray();
-            if (requestedRoleNames.Length == 0)
-            {
-                return Results.BadRequest(new { message = "At least one role is required." });
-            }
-
-            var allRoles = await db.Roles.OrderBy(x => x.Name).ToListAsync(cancellationToken);
-            var roles = allRoles
-                .Where(x => requestedRoleNames.Contains(x.Name, StringComparer.OrdinalIgnoreCase))
-                .ToList();
-            var unknownRoles = requestedRoleNames
-                .Except(roles.Select(x => x.Name), StringComparer.OrdinalIgnoreCase)
-                .ToArray();
-            if (unknownRoles.Length > 0)
-            {
-                return Results.BadRequest(new { message = $"Unknown roles: {string.Join(", ", unknownRoles)}." });
-            }
-
-            var userIsActiveAdmin = user.IsActive && user.UserRoles.Any(x => x.Role.Name == "Admin");
-            var userWillRemainActiveAdmin = request.IsActive && roles.Any(x => x.Name == "Admin");
-            if (userIsActiveAdmin && !userWillRemainActiveAdmin)
-            {
-                var activeAdminCount = await db.Users.CountAsync(
-                    x => x.IsActive && x.UserRoles.Any(role => role.Role.Name == "Admin"),
-                    cancellationToken);
-                if (activeAdminCount <= 1)
-                {
-                    return Results.BadRequest(new { message = "Cannot remove or deactivate the last active administrator." });
-                }
-            }
-
-            user.DisplayName = request.DisplayName.Trim();
-            user.IsActive = request.IsActive;
-            user.UserRoles.Clear();
-            foreach (var role in roles)
-            {
-                user.UserRoles.Add(new UserRole { UserId = user.Id, RoleId = role.Id, Role = role });
-            }
-
-            await db.SaveChangesAsync(cancellationToken);
-
-            return Results.Ok(ToAdminUser(user));
-        });
-
-        group.MapGet("/categories", async (SupportPilotDbContext db, CancellationToken cancellationToken) =>
-            Results.Ok(await db.TicketCategories.AsNoTracking().OrderBy(x => x.Name).ToListAsync(cancellationToken)));
+        group.MapGet("/categories", async (AdminUseCases admin, CancellationToken cancellationToken) =>
+            Results.Ok(await admin.ListTicketCategoriesAsync(cancellationToken)))
+            .WithRouteDocs(
+                "List ticket categories for administration",
+                "Returns active and inactive ticket categories sorted by name.")
+            .Produces<IReadOnlyList<TicketCategory>>();
 
         group.MapPost("/categories", async (
             UpsertCategoryRequest request,
-            SupportPilotDbContext db,
-            IApplicationCache cache,
+            AdminUseCases admin,
             CancellationToken cancellationToken) =>
         {
-            var category = new TicketCategory
-            {
-                Name = request.Name.Trim(),
-                Description = request.Description,
-                IsActive = request.IsActive
-            };
-            db.TicketCategories.Add(category);
-            await db.SaveChangesAsync(cancellationToken);
-            await cache.InvalidateGroupAsync(CacheGroups.Reports, cancellationToken);
-            return Results.Created($"/api/admin/categories/{category.Id}", category);
-        });
+            var result = await admin.CreateTicketCategoryAsync(request, cancellationToken);
+            return result.IsSuccess
+                ? Results.Created($"/api/admin/categories/{result.Value!.Id}", result.Value)
+                : ToHttpResult(result);
+        })
+            .WithRouteDocs(
+                "Create a ticket category",
+                "Creates a category that can be made available for new tickets.")
+            .Produces<TicketCategory>(StatusCodes.Status201Created)
+            .Produces(StatusCodes.Status400BadRequest);
 
         group.MapPut("/categories/{id:guid}", async (
             Guid id,
             UpsertCategoryRequest request,
-            SupportPilotDbContext db,
-            IApplicationCache cache,
+            AdminUseCases admin,
             CancellationToken cancellationToken) =>
         {
-            var category = await db.TicketCategories.SingleOrDefaultAsync(x => x.Id == id, cancellationToken);
-            if (category is null)
-            {
-                return Results.NotFound();
-            }
+            var result = await admin.UpdateTicketCategoryAsync(id, request, cancellationToken);
+            return result.IsSuccess ? Results.Ok(result.Value) : ToHttpResult(result);
+        })
+            .WithRouteDocs(
+                "Update a ticket category",
+                "Updates category name, description and active state.")
+            .Produces<TicketCategory>()
+            .Produces(StatusCodes.Status400BadRequest)
+            .Produces(StatusCodes.Status404NotFound);
 
-            category.Name = request.Name.Trim();
-            category.Description = request.Description;
-            category.IsActive = request.IsActive;
-            await db.SaveChangesAsync(cancellationToken);
-            await cache.InvalidateGroupAsync(CacheGroups.Reports, cancellationToken);
-            return Results.Ok(category);
-        });
-
-        group.MapGet("/sla-policies", async (SupportPilotDbContext db, CancellationToken cancellationToken) =>
-            Results.Ok(await db.SlaPolicies.AsNoTracking().OrderByDescending(x => x.Priority).ToListAsync(cancellationToken)));
+        group.MapGet("/sla-policies", async (AdminUseCases admin, CancellationToken cancellationToken) =>
+            Results.Ok(await admin.ListSlaPoliciesAsync(cancellationToken)))
+            .WithRouteDocs(
+                "List SLA policies",
+                "Returns all configured SLA policies sorted by priority descending.")
+            .Produces<IReadOnlyList<SlaPolicy>>();
 
         group.MapPut("/sla-policies/{id:guid}", async (
             Guid id,
             UpsertSlaPolicyRequest request,
-            SupportPilotDbContext db,
-            IApplicationCache cache,
+            AdminUseCases admin,
             CancellationToken cancellationToken) =>
         {
-            var policy = await db.SlaPolicies.SingleOrDefaultAsync(x => x.Id == id, cancellationToken);
-            if (policy is null)
-            {
-                return Results.NotFound();
-            }
-
-            policy.Name = request.Name.Trim();
-            policy.Priority = request.Priority;
-            policy.FirstResponseMinutes = request.FirstResponseMinutes;
-            policy.ResolutionMinutes = request.ResolutionMinutes;
-            policy.IsActive = request.IsActive;
-            await db.SaveChangesAsync(cancellationToken);
-            await cache.InvalidateGroupAsync(CacheGroups.Reports, cancellationToken);
-            return Results.Ok(policy);
-        });
+            var result = await admin.UpdateSlaPolicyAsync(id, request, cancellationToken);
+            return result.IsSuccess ? Results.Ok(result.Value) : ToHttpResult(result);
+        })
+            .WithRouteDocs(
+                "Update an SLA policy",
+                "Updates SLA thresholds, priority mapping and active state, then invalidates report cache.")
+            .Produces<SlaPolicy>()
+            .Produces(StatusCodes.Status400BadRequest)
+            .Produces(StatusCodes.Status404NotFound);
 
         group.MapGet("/audit", async (SupportPilotDbContext db) =>
         {
@@ -456,7 +398,11 @@ public static class EndpointMappingExtensions
                 .ToListAsync();
 
             return Results.Ok(result);
-        });
+        })
+            .WithRouteDocs(
+                "List recent audit events",
+                "Returns the 200 most recent audit log entries with actor display names.")
+            .Produces(StatusCodes.Status200OK);
 
         return app;
     }
@@ -946,14 +892,19 @@ public static class EndpointMappingExtensions
     private static UserProfileResponse ToProfile(User user) =>
         new(user.Id, user.Email, user.DisplayName, user.UserRoles.Select(x => x.Role.Name).Order().ToArray());
 
-    private static AdminUserResponse ToAdminUser(User user) =>
-        new(
-            user.Id,
-            user.Email,
-            user.DisplayName,
-            user.IsActive,
-            user.CreatedAt,
-            user.UserRoles.Select(x => x.Role.Name).Order().ToArray());
+    private static RouteHandlerBuilder WithRouteDocs(
+        this RouteHandlerBuilder builder,
+        string summary,
+        string description) =>
+        builder
+            .WithSummary(summary)
+            .WithDescription(description)
+            .WithOpenApi(operation =>
+            {
+                operation.Summary = summary;
+                operation.Description = description;
+                return operation;
+            });
 
     private static KnowledgeBaseArticleResponse ToKnowledgeBaseArticleResponse(KnowledgeBaseArticle article) =>
         new(

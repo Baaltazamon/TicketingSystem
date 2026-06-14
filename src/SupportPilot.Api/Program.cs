@@ -63,6 +63,7 @@ builder.Services.AddAuthorization(options =>
 });
 
 builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddProblemDetails();
 builder.Services.AddSwaggerGen(options =>
 {
     options.SwaggerDoc("v1", new OpenApiInfo
@@ -132,6 +133,17 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseCors("Frontend");
+app.UseStatusCodePages(async statusCodeContext =>
+{
+    var httpContext = statusCodeContext.HttpContext;
+    var statusCode = httpContext.Response.StatusCode;
+    await Results.Problem(
+            statusCode: statusCode,
+            title: GetProblemTitle(statusCode),
+            detail: GetProblemTitle(statusCode),
+            type: $"https://httpstatuses.com/{statusCode}")
+        .ExecuteAsync(httpContext);
+});
 app.UseAuthentication();
 app.UseAuthorization();
 
@@ -158,6 +170,17 @@ app.MapHealthChecks("/api/health/live", new HealthCheckOptions
 {
     Predicate = _ => false
 });
+
+static string GetProblemTitle(int statusCode) =>
+    statusCode switch
+    {
+        StatusCodes.Status400BadRequest => "Validation failed",
+        StatusCodes.Status401Unauthorized => "Unauthorized",
+        StatusCodes.Status403Forbidden => "Forbidden",
+        StatusCodes.Status404NotFound => "Resource not found",
+        StatusCodes.Status409Conflict => "Conflict",
+        _ => "Request failed"
+    };
 
 app.Run();
 

@@ -310,9 +310,9 @@ dotnet publish src/SupportPilot.Notifications.Worker/SupportPilot.Notifications.
 
 ## Next Technical Steps
 
-- Add dedicated integration tests for OpenAPI generation and a minimal Swagger smoke check.
+- Add Docker Compose smoke automation for health, login, ticket creation and attachment upload/download.
 - Move remaining high-volume dashboard and ticket read paths behind query-specific Application ports if database load grows.
-- Add API problem-details response contracts for consistent error documentation.
+- Add release notes for the next backend hardening milestone.
 
 ## License
 

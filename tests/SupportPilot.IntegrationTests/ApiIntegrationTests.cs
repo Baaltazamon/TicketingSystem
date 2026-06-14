@@ -27,7 +27,7 @@ public sealed class ApiIntegrationTests(SupportPilotApiFactory factory) : IClass
     }
 
     [Fact]
-    public async Task SwaggerDocumentsAdminRoutes()
+    public async Task SwaggerDocumentsRoutesXmlCommentsAndProblemResponses()
     {
         var client = factory.CreateClient();
 
@@ -35,16 +35,47 @@ public sealed class ApiIntegrationTests(SupportPilotApiFactory factory) : IClass
 
         response.EnsureSuccessStatusCode();
         using var json = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
-        var operation = json.RootElement
-            .GetProperty("paths")
-            .GetProperty("/api/admin/users/{id}")
-            .GetProperty("put");
+        var paths = json.RootElement.GetProperty("paths");
 
-        Assert.Equal("Update an administrative user", operation.GetProperty("summary").GetString());
+        var adminUserUpdate = paths.GetProperty("/api/admin/users/{id}").GetProperty("put");
+        Assert.Equal("Update an administrative user", adminUserUpdate.GetProperty("summary").GetString());
         Assert.Contains(
             "last active administrator",
-            operation.GetProperty("description").GetString(),
+            adminUserUpdate.GetProperty("description").GetString(),
             StringComparison.OrdinalIgnoreCase);
+
+        Assert.Equal(
+            "Register a customer account",
+            paths.GetProperty("/api/auth/register").GetProperty("post").GetProperty("summary").GetString());
+        Assert.Equal(
+            "List active ticket categories",
+            paths.GetProperty("/api/tickets/categories").GetProperty("get").GetProperty("summary").GetString());
+        Assert.Equal(
+            "Search public knowledge base articles",
+            paths.GetProperty("/api/kb/articles").GetProperty("get").GetProperty("summary").GetString());
+        Assert.Equal(
+            "Get support dashboard overview",
+            paths.GetProperty("/api/reports/overview").GetProperty("get").GetProperty("summary").GetString());
+        Assert.Equal(
+            "List notification inbox",
+            paths.GetProperty("/api/notifications").GetProperty("get").GetProperty("summary").GetString());
+
+        var createTicketBadRequest = paths
+            .GetProperty("/api/tickets")
+            .GetProperty("post")
+            .GetProperty("responses")
+            .GetProperty("400");
+        AssertResponseReferencesSchema(createTicketBadRequest, "ProblemDetails");
+
+        var schemas = json.RootElement.GetProperty("components").GetProperty("schemas");
+        Assert.Contains(
+            "Request used by a customer or support user to create a ticket",
+            schemas.GetProperty("CreateTicketRequest").GetProperty("description").GetString(),
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "Operational dashboard data for support staff",
+            schemas.GetProperty("DashboardOverviewResponse").GetProperty("description").GetString(),
+            StringComparison.Ordinal);
     }
 
     [Fact]
@@ -113,7 +144,7 @@ public sealed class ApiIntegrationTests(SupportPilotApiFactory factory) : IClass
 
         var response = await customer.GetAsync("/api/reports/overview");
 
-        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        await AssertProblemDetailsAsync(response, HttpStatusCode.Forbidden, "Forbidden");
     }
 
     [Fact]
@@ -176,7 +207,7 @@ public sealed class ApiIntegrationTests(SupportPilotApiFactory factory) : IClass
 
         var response = await customer.GetAsync("/api/kb/admin/articles");
 
-        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        await AssertProblemDetailsAsync(response, HttpStatusCode.Forbidden, "Forbidden");
     }
 
     [Fact]
@@ -232,7 +263,7 @@ public sealed class ApiIntegrationTests(SupportPilotApiFactory factory) : IClass
             roles = new[] { "Admin" }
         });
 
-        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        await AssertProblemDetailsAsync(response, HttpStatusCode.BadRequest, "Validation failed");
     }
 
     [Fact]
@@ -492,17 +523,17 @@ public sealed class ApiIntegrationTests(SupportPilotApiFactory factory) : IClass
         Assert.Equal(HttpStatusCode.Created, firstRegister.StatusCode);
 
         var duplicateRegister = await client.PostAsJsonAsync("/api/auth/register", payload);
-        Assert.Equal(HttpStatusCode.Conflict, duplicateRegister.StatusCode);
+        await AssertProblemDetailsAsync(duplicateRegister, HttpStatusCode.Conflict, "Conflict");
 
         var invalidLogin = await client.PostAsJsonAsync("/api/auth/login", new
         {
             email,
             password = "WrongPassword123!"
         });
-        Assert.Equal(HttpStatusCode.Unauthorized, invalidLogin.StatusCode);
+        await AssertProblemDetailsAsync(invalidLogin, HttpStatusCode.Unauthorized, "Unauthorized");
 
         var anonymousMe = await factory.CreateClient().GetAsync("/api/auth/me");
-        Assert.Equal(HttpStatusCode.Unauthorized, anonymousMe.StatusCode);
+        await AssertProblemDetailsAsync(anonymousMe, HttpStatusCode.Unauthorized, "Unauthorized");
     }
 
     [Fact]
@@ -578,7 +609,7 @@ public sealed class ApiIntegrationTests(SupportPilotApiFactory factory) : IClass
             reason = "Skip workflow"
         });
 
-        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        await AssertProblemDetailsAsync(response, HttpStatusCode.BadRequest, "Validation failed");
 
         using var scope = factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<SupportPilotDbContext>();
@@ -595,7 +626,7 @@ public sealed class ApiIntegrationTests(SupportPilotApiFactory factory) : IClass
 
         var response = await other.GetAsync($"/api/tickets/{ticketId}");
 
-        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        await AssertProblemDetailsAsync(response, HttpStatusCode.Forbidden, "Forbidden");
     }
 
     [Fact]
@@ -680,7 +711,7 @@ public sealed class ApiIntegrationTests(SupportPilotApiFactory factory) : IClass
         }
 
         var forbidden = await customer.GetAsync("/api/tickets/assignees");
-        Assert.Equal(HttpStatusCode.Forbidden, forbidden.StatusCode);
+        await AssertProblemDetailsAsync(forbidden, HttpStatusCode.Forbidden, "Forbidden");
 
         var response = await agent.GetAsync("/api/tickets/assignees");
         response.EnsureSuccessStatusCode();
@@ -774,5 +805,33 @@ public sealed class ApiIntegrationTests(SupportPilotApiFactory factory) : IClass
 
         using var json = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
         return json.RootElement.GetProperty("id").GetGuid();
+    }
+
+    private static void AssertResponseReferencesSchema(JsonElement response, string schemaName)
+    {
+        var matchingSchemas = response
+            .GetProperty("content")
+            .EnumerateObject()
+            .Select(content => content.Value.GetProperty("schema").GetProperty("$ref").GetString())
+            .Where(reference => reference is not null);
+
+        Assert.Contains($"#/components/schemas/{schemaName}", matchingSchemas);
+    }
+
+    private static async Task AssertProblemDetailsAsync(
+        HttpResponseMessage response,
+        HttpStatusCode expectedStatus,
+        string expectedTitle)
+    {
+        Assert.Equal(expectedStatus, response.StatusCode);
+        Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
+
+        using var json = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
+        var root = json.RootElement;
+
+        Assert.Equal((int)expectedStatus, root.GetProperty("status").GetInt32());
+        Assert.Equal(expectedTitle, root.GetProperty("title").GetString());
+        Assert.False(string.IsNullOrWhiteSpace(root.GetProperty("detail").GetString()));
+        Assert.Contains(((int)expectedStatus).ToString(), root.GetProperty("type").GetString(), StringComparison.Ordinal);
     }
 }

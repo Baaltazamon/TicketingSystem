@@ -69,7 +69,7 @@ builder.Services.AddSwaggerGen(options =>
     {
         Title = "SupportPilot API",
         Version = "v1",
-        Description = "Система обращений в поддержку с SLA, комментариями, вложениями и базой знаний."
+        Description = "Support ticketing API with SLA tracking, comments, attachments, notifications and knowledge base workflows."
     });
 
     foreach (var xmlFile in new[]

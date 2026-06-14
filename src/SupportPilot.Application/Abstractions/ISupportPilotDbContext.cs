@@ -11,6 +11,9 @@ public interface ISupportPilotDbContext
     /// <summary>User accounts.</summary>
     DbSet<User> Users { get; }
 
+    /// <summary>Application roles.</summary>
+    DbSet<Role> Roles { get; }
+
     /// <summary>User-role assignments.</summary>
     DbSet<UserRole> UserRoles { get; }
 

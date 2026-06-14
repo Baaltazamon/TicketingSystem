@@ -121,7 +121,7 @@ The main public API surface generates XML documentation during build and publish
 - `SupportPilot.Domain`
 - `SupportPilot.Notifications.Worker`
 
-Swagger includes XML comments from API, Contracts, Domain and Application assemblies when the files are present in the application output directory. This documents endpoint groups, auth/ticket use cases, request/response DTOs, domain entities, enums and application ports.
+Swagger includes XML comments from API, Contracts, Domain and Application assemblies when the files are present in the application output directory. This documents endpoint groups, auth/ticket/admin use cases, request/response DTOs, domain entities, enums and application ports. Minimal API routes that need route-level text use explicit OpenAPI metadata through `WithRouteDocs(...)`.
 
 Build output location:
 
@@ -230,7 +230,7 @@ Application -> Domain / Contracts
 Contracts -> Domain
 ```
 
-HTTP-слой принимает запросы и возвращает ответы. Бизнес-логика авторизации находится в `SupportPilot.Application/Auth/AuthUseCases.cs`.
+HTTP-слой принимает запросы и возвращает ответы. Бизнес-логика авторизации находится в `SupportPilot.Application/Auth/AuthUseCases.cs`, а бизнес-логика администрирования пользователей, категорий тикетов и SLA policies - в `SupportPilot.Application/Admin/AdminUseCases.cs`.
 
 Application определяет порты:
 
@@ -305,4 +305,4 @@ dotnet publish src/SupportPilot.Notifications.Worker/SupportPilot.Notifications.
 
 ## Следующие технические шаги
 
-- Move remaining admin endpoint business logic into Application use cases to keep API endpoints as thin request/response adapters.
+- Move knowledge base and report query logic into Application use cases so the remaining API endpoints stay thin request/response adapters.

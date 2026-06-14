@@ -27,6 +27,27 @@ public sealed class ApiIntegrationTests(SupportPilotApiFactory factory) : IClass
     }
 
     [Fact]
+    public async Task SwaggerDocumentsAdminRoutes()
+    {
+        var client = factory.CreateClient();
+
+        var response = await client.GetAsync("/swagger/v1/swagger.json");
+
+        response.EnsureSuccessStatusCode();
+        using var json = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
+        var operation = json.RootElement
+            .GetProperty("paths")
+            .GetProperty("/api/admin/users/{id}")
+            .GetProperty("put");
+
+        Assert.Equal("Update an administrative user", operation.GetProperty("summary").GetString());
+        Assert.Contains(
+            "last active administrator",
+            operation.GetProperty("description").GetString(),
+            StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public async Task CreatesTicketThroughApi()
     {
         var client = await CreateAuthenticatedClientAsync();

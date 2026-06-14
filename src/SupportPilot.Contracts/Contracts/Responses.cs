@@ -108,6 +108,25 @@ public sealed record AdminUserResponse(
     string[] Roles);
 
 /// <summary>
+/// Audit log entry returned to administrators.
+/// </summary>
+/// <param name="Id">Audit log identifier.</param>
+/// <param name="Action">Audited action type.</param>
+/// <param name="EntityName">Name of the affected entity type.</param>
+/// <param name="EntityId">Identifier of the affected entity.</param>
+/// <param name="Details">Human-readable audit details.</param>
+/// <param name="Actor">Display name of the actor, if the actor still exists.</param>
+/// <param name="CreatedAt">UTC timestamp when the audit event was recorded.</param>
+public sealed record AuditLogResponse(
+    Guid Id,
+    AuditAction Action,
+    string EntityName,
+    string EntityId,
+    string Details,
+    string? Actor,
+    DateTimeOffset CreatedAt);
+
+/// <summary>
 /// Ticket comment or internal note visible to the current user.
 /// </summary>
 /// <param name="Id">Comment identifier.</param>

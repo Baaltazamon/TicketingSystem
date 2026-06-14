@@ -121,7 +121,7 @@ The main public API surface generates XML documentation during build and publish
 - `SupportPilot.Domain`
 - `SupportPilot.Notifications.Worker`
 
-Swagger includes XML comments from API, Contracts, Domain and Application assemblies when the files are present in the application output directory. This documents endpoint groups, auth/ticket/admin/knowledge-base/report use cases, request/response DTOs, domain entities, enums and application ports. Minimal API routes that need route-level text use explicit OpenAPI metadata through `WithRouteDocs(...)`.
+Swagger includes XML comments from API, Contracts, Domain and Application assemblies when the files are present in the application output directory. This documents endpoint groups, auth/ticket/admin/knowledge-base/report/notification use cases, request/response DTOs, domain entities, enums and application ports. Minimal API routes that need route-level text use explicit OpenAPI metadata through `WithRouteDocs(...)`.
 
 Build output location:
 
@@ -230,7 +230,9 @@ Application -> Domain / Contracts
 Contracts -> Domain
 ```
 
-Knowledge base workflows live in `SupportPilot.Application/KnowledgeBase/KnowledgeBaseUseCases.cs`; support dashboard report queries live in `SupportPilot.Application/Reports/ReportUseCases.cs`. API endpoints stay as request/response adapters and map `ApplicationResult<T>` to HTTP responses.
+Knowledge base workflows live in `SupportPilot.Application/KnowledgeBase/KnowledgeBaseUseCases.cs`; support dashboard report queries live in `SupportPilot.Application/Reports/ReportUseCases.cs`; notification inbox workflows live in `SupportPilot.Application/Notifications/NotificationUseCases.cs`; audit-log reads are exposed through `SupportPilot.Application/Admin/AdminUseCases.cs`. API endpoints stay as request/response adapters and map `ApplicationResult<T>` to HTTP responses.
+
+Storage-optimized notification inbox and audit-log queries are exposed to Application through `INotificationInboxStore` and `IAuditLogReader`, with EF Core implementations in Infrastructure.
 
 HTTP-слой принимает запросы и возвращает ответы. Бизнес-логика авторизации находится в `SupportPilot.Application/Auth/AuthUseCases.cs`, а бизнес-логика администрирования пользователей, категорий тикетов и SLA policies - в `SupportPilot.Application/Admin/AdminUseCases.cs`.
 
@@ -294,6 +296,8 @@ Infrastructure содержит реализации портов:
 - `GET /api/admin/sla-policies`
 - `PUT /api/admin/sla-policies/{id}`
 - `GET /api/admin/audit`
+- `GET /api/notifications`
+- `POST /api/notifications/{id}/read`
 
 ## Проверки
 
@@ -307,4 +311,4 @@ dotnet publish src/SupportPilot.Notifications.Worker/SupportPilot.Notifications.
 
 ## Следующие технические шаги
 
-- Move notification inbox and audit-log read flows into Application use cases so the remaining API endpoints stay thin request/response adapters.
+- Move remaining ticket-support reads and attachment download authorization into Application use cases so the remaining API endpoints stay thin request/response adapters.

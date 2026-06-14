@@ -48,11 +48,13 @@ public static class DependencyInjection
         services.AddScoped<ITokenService>(provider => provider.GetRequiredService<JwtTokenService>());
         services.AddScoped<IPasswordHasher, AspNetPasswordHasher>();
         services.AddScoped<IUserAccountStore, UserAccountStore>();
+        services.AddScoped<IAuditLogReader, AuditLogReader>();
         services.AddSingleton<IApplicationCache, DistributedApplicationCache>();
         services.AddApplicationCache(configuration);
         services.AddScoped<DatabaseNotificationPublisher>();
         services.AddScoped<RabbitMqNotificationPublisher>();
         services.AddScoped<NotificationInbox>();
+        services.AddScoped<INotificationInboxStore>(provider => provider.GetRequiredService<NotificationInbox>());
         services.AddScoped<INotificationPublisher>(provider =>
         {
             var options = configuration.GetSection(NotificationOptions.SectionName).Get<NotificationOptions>() ?? new NotificationOptions();

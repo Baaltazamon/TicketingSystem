@@ -5,6 +5,7 @@ using SupportPilot.Application.Admin;
 using SupportPilot.Application.Auth;
 using SupportPilot.Application.Common;
 using SupportPilot.Application.KnowledgeBase;
+using SupportPilot.Application.Notifications;
 using SupportPilot.Application.Reports;
 using SupportPilot.Application.Tickets;
 using SupportPilot.Api.Auth;
@@ -374,35 +375,12 @@ public static class EndpointMappingExtensions
             .Produces(StatusCodes.Status400BadRequest)
             .Produces(StatusCodes.Status404NotFound);
 
-        group.MapGet("/audit", async (SupportPilotDbContext db) =>
-        {
-            var result = await db.AuditLogs
-                .FromSqlRaw("""
-                    SELECT *
-                    FROM "AuditLogs"
-                    ORDER BY "CreatedAt" DESC
-                    LIMIT 200
-                    """)
-                .AsNoTracking()
-                .Include(x => x.Actor)
-                .Select(x => new
-                {
-                    x.Id,
-                    x.Action,
-                    x.EntityName,
-                    x.EntityId,
-                    x.Details,
-                    actor = x.Actor == null ? null : x.Actor.DisplayName,
-                    x.CreatedAt
-                })
-                .ToListAsync();
-
-            return Results.Ok(result);
-        })
+        group.MapGet("/audit", async (AdminUseCases admin, CancellationToken cancellationToken) =>
+            Results.Ok(await admin.ListRecentAuditLogsAsync(cancellationToken)))
             .WithRouteDocs(
                 "List recent audit events",
                 "Returns the 200 most recent audit log entries with actor display names.")
-            .Produces(StatusCodes.Status200OK);
+            .Produces<IReadOnlyList<AuditLogResponse>>();
 
         return app;
     }
@@ -526,34 +504,30 @@ public static class EndpointMappingExtensions
     {
         var group = app.MapGroup("/api/notifications").WithTags("Notifications").RequireAuthorization();
 
-        group.MapGet("/", async (CurrentUser currentUser, SupportPilotDbContext db) =>
+        group.MapGet("/", async (
+            CurrentUser currentUser,
+            NotificationUseCases notifications,
+            CancellationToken cancellationToken) =>
+            Results.Ok(await notifications.ListInboxAsync(currentUser.Id, cancellationToken)))
+            .WithRouteDocs(
+                "List notification inbox",
+                "Returns the 100 most recent personal and global notifications for the current user.")
+            .Produces<IReadOnlyList<Notification>>();
+
+        group.MapPost("/{id:guid}/read", async (
+            Guid id,
+            CurrentUser currentUser,
+            NotificationUseCases notifications,
+            CancellationToken cancellationToken) =>
         {
-            var notifications = await db.Notifications
-                .FromSqlInterpolated($"""
-                    SELECT *
-                    FROM "Notifications"
-                    WHERE "UserId" = {currentUser.Id} OR "UserId" IS NULL
-                    ORDER BY "CreatedAt" DESC
-                    LIMIT 100
-                    """)
-                .AsNoTracking()
-                .ToListAsync();
-
-            return Results.Ok(notifications);
-        });
-
-        group.MapPost("/{id:guid}/read", async (Guid id, CurrentUser currentUser, SupportPilotDbContext db) =>
-        {
-            var notification = await db.Notifications.SingleOrDefaultAsync(x => x.Id == id && x.UserId == currentUser.Id);
-            if (notification is null)
-            {
-                return Results.NotFound();
-            }
-
-            notification.IsRead = true;
-            await db.SaveChangesAsync();
-            return Results.NoContent();
-        });
+            var result = await notifications.MarkAsReadAsync(id, currentUser.Id, cancellationToken);
+            return ToHttpResult(result);
+        })
+            .WithRouteDocs(
+                "Mark notification as read",
+                "Marks a personal notification owned by the current user as read.")
+            .Produces(StatusCodes.Status204NoContent)
+            .Produces(StatusCodes.Status404NotFound);
 
         return app;
     }

@@ -9,7 +9,10 @@ namespace SupportPilot.Application.Admin;
 /// <summary>
 /// Provides administrative use cases for users, roles, ticket categories and SLA policies.
 /// </summary>
-public sealed class AdminUseCases(ISupportPilotDbContext db, IApplicationCache cache)
+public sealed class AdminUseCases(
+    ISupportPilotDbContext db,
+    IApplicationCache cache,
+    IAuditLogReader auditLogReader)
 {
     /// <summary>
     /// Lists all users with their assigned roles and administrative state.
@@ -39,6 +42,16 @@ public sealed class AdminUseCases(ISupportPilotDbContext db, IApplicationCache c
             .OrderBy(x => x.Name)
             .Select(x => x.Name)
             .ToListAsync(cancellationToken);
+    }
+
+    /// <summary>
+    /// Lists the most recent audit log entries for administrators.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>Most recent audit events with actor display names.</returns>
+    public async Task<IReadOnlyList<AuditLogResponse>> ListRecentAuditLogsAsync(CancellationToken cancellationToken)
+    {
+        return await auditLogReader.ListRecentAsync(cancellationToken);
     }
 
     /// <summary>

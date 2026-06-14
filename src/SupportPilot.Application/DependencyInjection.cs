@@ -2,6 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 using SupportPilot.Application.Admin;
 using SupportPilot.Application.Auth;
 using SupportPilot.Application.KnowledgeBase;
+using SupportPilot.Application.Notifications;
 using SupportPilot.Application.Reports;
 using SupportPilot.Application.Tickets;
 
@@ -22,6 +23,7 @@ public static class DependencyInjection
         services.AddScoped<AdminUseCases>();
         services.AddScoped<AuthUseCases>();
         services.AddScoped<KnowledgeBaseUseCases>();
+        services.AddScoped<NotificationUseCases>();
         services.AddScoped<ReportUseCases>();
         services.AddScoped<TicketUseCases>();
         return services;

@@ -128,8 +128,8 @@ export async function getTicketCategories(token: string): Promise<TicketCategory
   return request<TicketCategory[]>("/tickets/categories", { token });
 }
 
-export async function getUsers(token: string): Promise<UserProfile[]> {
-  return request<UserProfile[]>("/admin/users", { token });
+export async function getTicketAssignees(token: string): Promise<UserProfile[]> {
+  return request<UserProfile[]>("/tickets/assignees", { token });
 }
 
 export async function getAdminUsers(token: string): Promise<AdminUser[]> {

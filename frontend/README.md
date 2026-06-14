@@ -53,6 +53,7 @@ The frontend currently contains:
 - ticket creation;
 - ticket details with SLA metadata;
 - status and assignment controls for support users;
+- support-staff assignee lookup without Admin-only endpoint coupling;
 - public comments and internal notes;
 - attachment upload, download and deletion;
 - knowledge base article search and reading;

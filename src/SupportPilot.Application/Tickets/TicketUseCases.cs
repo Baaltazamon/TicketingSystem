@@ -18,6 +18,47 @@ public sealed class TicketUseCases(
     INotificationPublisher notificationPublisher)
 {
     /// <summary>
+    /// Lists active ticket categories available for new tickets.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>Active categories sorted by name.</returns>
+    public async Task<IReadOnlyList<TicketCategory>> ListActiveCategoriesAsync(
+        CancellationToken cancellationToken = default)
+    {
+        return await db.TicketCategories
+            .AsNoTracking()
+            .Where(x => x.IsActive)
+            .OrderBy(x => x.Name)
+            .ToListAsync(cancellationToken);
+    }
+
+    /// <summary>
+    /// Lists active support users that can be assigned to tickets.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>Active administrators and agents sorted by display name.</returns>
+    public async Task<IReadOnlyList<UserProfileResponse>> ListAssigneesAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var users = await db.Users
+            .AsNoTracking()
+            .Include(x => x.UserRoles)
+            .ThenInclude(x => x.Role)
+            .Where(x => x.IsActive && x.UserRoles.Any(role => role.Role.Name == "Admin" || role.Role.Name == "Agent"))
+            .OrderBy(x => x.DisplayName)
+            .ThenBy(x => x.Email)
+            .ToListAsync(cancellationToken);
+
+        return users
+            .Select(x => new UserProfileResponse(
+                x.Id,
+                x.Email,
+                x.DisplayName,
+                x.UserRoles.Select(role => role.Role.Name).Order().ToArray()))
+            .ToList();
+    }
+
+    /// <summary>
     /// Lists tickets visible to the current actor with optional support filters.
     /// </summary>
     /// <param name="query">Ticket query filters.</param>
@@ -427,6 +468,54 @@ public sealed class TicketUseCases(
     }
 
     /// <summary>
+    /// Opens an attachment for download after validating ticket read access.
+    /// </summary>
+    /// <param name="ticketId">Ticket identifier.</param>
+    /// <param name="attachmentId">Attachment identifier.</param>
+    /// <param name="actor">Current actor authorization context.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>Attachment download stream or a normalized application error.</returns>
+    public async Task<ApplicationResult<TicketAttachmentDownload>> DownloadAttachmentAsync(
+        Guid ticketId,
+        Guid attachmentId,
+        TicketActor actor,
+        CancellationToken cancellationToken = default)
+    {
+        var ticket = await db.Tickets.SingleOrDefaultAsync(x => x.Id == ticketId, cancellationToken);
+        if (ticket is null)
+        {
+            return ApplicationResult<TicketAttachmentDownload>.Failure(ApplicationError.NotFound, "Обращение не найдено.");
+        }
+
+        if (!CanReadTicket(actor, ticket))
+        {
+            return ApplicationResult<TicketAttachmentDownload>.Failure(ApplicationError.Forbidden, "Нет доступа к обращению.");
+        }
+
+        var attachment = await db.TicketAttachments.SingleOrDefaultAsync(
+            x => x.Id == attachmentId && x.TicketId == ticketId,
+            cancellationToken);
+        if (attachment is null)
+        {
+            return ApplicationResult<TicketAttachmentDownload>.Failure(ApplicationError.NotFound, "Вложение не найдено.");
+        }
+
+        var download = await fileStorage.OpenReadAsync(attachment.StorageKey, cancellationToken);
+        if (download is null)
+        {
+            return ApplicationResult<TicketAttachmentDownload>.Failure(
+                ApplicationError.NotFound,
+                "Файл отсутствует в хранилище.");
+        }
+
+        return ApplicationResult<TicketAttachmentDownload>.Success(new TicketAttachmentDownload(
+            download.Content,
+            attachment.ContentType,
+            attachment.FileName,
+            download.SizeBytes));
+    }
+
+    /// <summary>
     /// Deletes an attachment metadata record and removes the object from configured file storage.
     /// </summary>
     /// <param name="ticketId">Ticket identifier.</param>
@@ -565,4 +654,21 @@ public sealed class TicketUseCases(
         var count = await db.Tickets.CountAsync(x => x.Number.StartsWith(prefix), cancellationToken) + 1;
         return string.Create(CultureInfo.InvariantCulture, $"{prefix}{count:00000}");
     }
+}
+
+/// <summary>
+/// Attachment file opened for HTTP download.
+/// </summary>
+/// <param name="Content">Readable file content stream.</param>
+/// <param name="ContentType">Attachment MIME content type.</param>
+/// <param name="FileName">Original file name.</param>
+/// <param name="SizeBytes">Stored file size, if known.</param>
+public sealed record TicketAttachmentDownload(
+    Stream Content,
+    string ContentType,
+    string FileName,
+    long? SizeBytes) : IAsyncDisposable
+{
+    /// <summary>Disposes the wrapped content stream.</summary>
+    public ValueTask DisposeAsync() => Content.DisposeAsync();
 }

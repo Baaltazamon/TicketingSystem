@@ -1,5 +1,4 @@
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using SupportPilot.Application.Abstractions;
 using SupportPilot.Application.Admin;
 using SupportPilot.Application.Auth;
@@ -11,7 +10,6 @@ using SupportPilot.Application.Tickets;
 using SupportPilot.Api.Auth;
 using SupportPilot.Contracts;
 using SupportPilot.Domain;
-using SupportPilot.Infrastructure.Data;
 
 namespace SupportPilot.Api.Endpoints;
 
@@ -70,27 +68,12 @@ public static class EndpointMappingExtensions
     {
         var group = app.MapGroup("/api/tickets").WithTags("Tickets").RequireAuthorization();
 
-        group.MapGet("/categories", async (SupportPilotDbContext db, CancellationToken cancellationToken) =>
-            Results.Ok(await db.TicketCategories
-                .AsNoTracking()
-                .Where(x => x.IsActive)
-                .OrderBy(x => x.Name)
-                .ToListAsync(cancellationToken)));
+        group.MapGet("/categories", async (TicketUseCases tickets, CancellationToken cancellationToken) =>
+            Results.Ok(await tickets.ListActiveCategoriesAsync(cancellationToken)));
 
-        group.MapGet("/assignees", async (SupportPilotDbContext db, CancellationToken cancellationToken) =>
-        {
-            var users = await db.Users
-                .AsNoTracking()
-                .Include(x => x.UserRoles)
-                .ThenInclude(x => x.Role)
-                .Where(x => x.IsActive && x.UserRoles.Any(role => role.Role.Name == "Admin" || role.Role.Name == "Agent"))
-                .OrderBy(x => x.DisplayName)
-                .ThenBy(x => x.Email)
-                .Select(x => ToProfile(x))
-                .ToListAsync(cancellationToken);
-
-            return Results.Ok(users);
-        }).RequireAuthorization("SupportStaff");
+        group.MapGet("/assignees", async (TicketUseCases tickets, CancellationToken cancellationToken) =>
+            Results.Ok(await tickets.ListAssigneesAsync(cancellationToken)))
+            .RequireAuthorization("SupportStaff");
 
         group.MapGet("/", async (
             [AsParameters] TicketQuery query,
@@ -225,33 +208,18 @@ public static class EndpointMappingExtensions
             Guid ticketId,
             Guid attachmentId,
             CurrentUser currentUser,
-            SupportPilotDbContext db,
-            IFileStorage storage,
+            TicketUseCases tickets,
             CancellationToken cancellationToken) =>
         {
-            var ticket = await db.Tickets.SingleOrDefaultAsync(x => x.Id == ticketId, cancellationToken);
-            if (ticket is null)
-            {
-                return Results.NotFound();
-            }
-
-            if (!CanReadTicket(currentUser, ticket))
-            {
-                return Results.Forbid();
-            }
-
-            var attachment = await db.TicketAttachments.SingleOrDefaultAsync(
-                x => x.Id == attachmentId && x.TicketId == ticketId,
+            var result = await tickets.DownloadAttachmentAsync(
+                ticketId,
+                attachmentId,
+                currentUser.ToTicketActor(),
                 cancellationToken);
-            if (attachment is null)
-            {
-                return Results.NotFound();
-            }
 
-            var download = await storage.OpenReadAsync(attachment.StorageKey, cancellationToken);
-            return download is null
-                ? Results.NotFound(new { message = "Файл отсутствует в хранилище." })
-                : Results.File(download.Content, attachment.ContentType, attachment.FileName);
+            return result.IsSuccess
+                ? Results.File(result.Value!.Content, result.Value.ContentType, result.Value.FileName)
+                : ToHttpResult(result);
         });
 
         group.MapDelete("/{ticketId:guid}/attachments/{attachmentId:guid}", async (
@@ -558,12 +526,6 @@ public static class EndpointMappingExtensions
 
     private static TicketActor ToTicketActor(this CurrentUser currentUser) =>
         new(currentUser.Id, currentUser.IsInRole("Admin"), currentUser.IsInRole("Admin") || currentUser.IsInRole("Agent"));
-
-    private static bool CanReadTicket(CurrentUser currentUser, Ticket ticket) =>
-        currentUser.IsInRole("Admin") || currentUser.IsInRole("Agent") || ticket.CreatedById == currentUser.Id;
-
-    private static UserProfileResponse ToProfile(User user) =>
-        new(user.Id, user.Email, user.DisplayName, user.UserRoles.Select(x => x.Role.Name).Order().ToArray());
 
     private static RouteHandlerBuilder WithRouteDocs(
         this RouteHandlerBuilder builder,

@@ -262,6 +262,7 @@ Infrastructure содержит реализации портов:
 - `POST /api/auth/login`
 - `GET /api/auth/me`
 - `GET /api/tickets/categories`
+- `GET /api/tickets/assignees`
 - `GET /api/tickets`
 - `POST /api/tickets`
 - `GET /api/tickets/{id}`
@@ -304,4 +305,4 @@ dotnet publish src/SupportPilot.Notifications.Worker/SupportPilot.Notifications.
 
 ## Следующие технические шаги
 
-- Add a support-staff assignee lookup endpoint instead of reusing Admin-only `/api/admin/users` from ticket workflows.
+- Move remaining admin endpoint business logic into Application use cases to keep API endpoints as thin request/response adapters.

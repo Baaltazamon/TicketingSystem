@@ -605,6 +605,37 @@ public sealed class ApiIntegrationTests(SupportPilotApiFactory factory) : IClass
         Assert.Contains(json.RootElement.EnumerateArray(), ticket => ticket.GetProperty("id").GetGuid() == ticketId);
     }
 
+    [Fact]
+    public async Task AssigneeLookupRequiresSupportStaffAndReturnsOnlyActiveSupportUsers()
+    {
+        var agentId = await CreateUserAsync("lookup-agent", "Agent");
+        var inactiveAgentId = await CreateUserAsync("lookup-inactive-agent", "Agent");
+        var customerId = await CreateUserAsync("lookup-customer", "Customer");
+        var agent = await LoginAsync($"lookup-agent-{agentId:N}@supportpilot.local", "Password123!");
+        var customer = await LoginAsync($"lookup-customer-{customerId:N}@supportpilot.local", "Password123!");
+
+        using (var scope = factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<SupportPilotDbContext>();
+            var inactiveAgent = await db.Users.SingleAsync(x => x.Id == inactiveAgentId);
+            inactiveAgent.IsActive = false;
+            await db.SaveChangesAsync();
+        }
+
+        var forbidden = await customer.GetAsync("/api/tickets/assignees");
+        Assert.Equal(HttpStatusCode.Forbidden, forbidden.StatusCode);
+
+        var response = await agent.GetAsync("/api/tickets/assignees");
+        response.EnsureSuccessStatusCode();
+        using var json = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
+        var users = json.RootElement.EnumerateArray().ToArray();
+
+        Assert.Contains(users, user => user.GetProperty("id").GetGuid() == agentId);
+        Assert.Contains(users, user => user.GetProperty("email").GetString() == "admin@supportpilot.local");
+        Assert.DoesNotContain(users, user => user.GetProperty("id").GetGuid() == customerId);
+        Assert.DoesNotContain(users, user => user.GetProperty("id").GetGuid() == inactiveAgentId);
+    }
+
     private async Task<HttpClient> CreateAuthenticatedClientAsync()
     {
         var client = factory.CreateClient();

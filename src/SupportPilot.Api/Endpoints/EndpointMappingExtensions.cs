@@ -75,6 +75,21 @@ public static class EndpointMappingExtensions
                 .OrderBy(x => x.Name)
                 .ToListAsync(cancellationToken)));
 
+        group.MapGet("/assignees", async (SupportPilotDbContext db, CancellationToken cancellationToken) =>
+        {
+            var users = await db.Users
+                .AsNoTracking()
+                .Include(x => x.UserRoles)
+                .ThenInclude(x => x.Role)
+                .Where(x => x.IsActive && x.UserRoles.Any(role => role.Role.Name == "Admin" || role.Role.Name == "Agent"))
+                .OrderBy(x => x.DisplayName)
+                .ThenBy(x => x.Email)
+                .Select(x => ToProfile(x))
+                .ToListAsync(cancellationToken);
+
+            return Results.Ok(users);
+        }).RequireAuthorization("SupportStaff");
+
         group.MapGet("/", async (
             [AsParameters] TicketQuery query,
             CurrentUser currentUser,

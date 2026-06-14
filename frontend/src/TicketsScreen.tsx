@@ -4,10 +4,10 @@ import {
   assignTicket,
   createTicket,
   deleteTicketAttachment,
+  getTicketAssignees,
   getTicket,
   getTicketCategories,
   getTickets,
-  getUsers,
   updateTicketStatus,
   uploadTicketAttachment
 } from "./api";
@@ -40,7 +40,6 @@ export function TicketsScreen({ token, user }: { token: string; user: UserProfil
   const [error, setError] = useState<string | null>(null);
 
   const canUseSupportActions = user.roles.some((role) => role === "Admin" || role === "Agent");
-  const canUseAdminLookups = user.roles.includes("Admin");
 
   async function loadTickets(nextQuery = query) {
     setIsLoadingList(true);
@@ -88,7 +87,7 @@ export function TicketsScreen({ token, user }: { token: string; user: UserProfil
 
     async function loadLookups() {
       const nextCategories = await getTicketCategories(token).catch(() => []);
-      const nextUsers = canUseAdminLookups ? await getUsers(token).catch(() => []) : [];
+      const nextUsers = canUseSupportActions ? await getTicketAssignees(token).catch(() => []) : [];
 
       if (isActive) {
         setCategories(nextCategories.filter((category) => category.isActive));
@@ -101,7 +100,7 @@ export function TicketsScreen({ token, user }: { token: string; user: UserProfil
     return () => {
       isActive = false;
     };
-  }, [canUseAdminLookups, token]);
+  }, [canUseSupportActions, token]);
 
   async function refreshCurrentTicket() {
     await loadTickets(query);

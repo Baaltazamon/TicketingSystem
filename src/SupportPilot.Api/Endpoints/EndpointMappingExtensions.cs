@@ -1,16 +1,16 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
 using SupportPilot.Application.Abstractions;
 using SupportPilot.Application.Admin;
 using SupportPilot.Application.Auth;
 using SupportPilot.Application.Common;
+using SupportPilot.Application.KnowledgeBase;
+using SupportPilot.Application.Reports;
 using SupportPilot.Application.Tickets;
 using SupportPilot.Api.Auth;
 using SupportPilot.Contracts;
 using SupportPilot.Domain;
 using SupportPilot.Infrastructure.Data;
-using SupportPilot.Infrastructure.Services;
 
 namespace SupportPilot.Api.Endpoints;
 
@@ -416,265 +416,87 @@ public static class EndpointMappingExtensions
     {
         var group = app.MapGroup("/api/kb").WithTags("KnowledgeBase");
 
-        group.MapGet("/categories", async (
-            SupportPilotDbContext db,
-            IApplicationCache cache,
-            IOptions<CacheOptions> cacheOptions,
-            CancellationToken cancellationToken) =>
-            Results.Ok(await cache.GetOrCreateAsync(
-                CacheGroups.KnowledgeBase,
-                "categories",
-                KnowledgeBaseCacheExpiration(cacheOptions),
-                token => db.KnowledgeBaseCategories
-                    .AsNoTracking()
-                    .OrderBy(x => x.Name)
-                    .Select(x => new KnowledgeBaseCategoryResponse(
-                        x.Id,
-                        x.Name,
-                        x.Description,
-                        x.Articles.Count(article => article.IsPublished)))
-                    .ToListAsync(token),
-                cancellationToken)));
+        group.MapGet("/categories", async (KnowledgeBaseUseCases knowledgeBase, CancellationToken cancellationToken) =>
+            Results.Ok(await knowledgeBase.ListPublicCategoriesAsync(cancellationToken)));
 
         group.MapGet("/articles", async (
             [FromQuery] string? search,
             [FromQuery] Guid? categoryId,
-            SupportPilotDbContext db,
-            IApplicationCache cache,
-            IOptions<CacheOptions> cacheOptions,
+            KnowledgeBaseUseCases knowledgeBase,
             CancellationToken cancellationToken) =>
-        {
-            var normalizedSearch = search?.Trim();
-            var cacheKey = $"articles:search={normalizedSearch?.ToLowerInvariant() ?? "all"}:category={categoryId?.ToString("N") ?? "all"}";
-            var articles = await cache.GetOrCreateAsync(
-                CacheGroups.KnowledgeBase,
-                cacheKey,
-                KnowledgeBaseCacheExpiration(cacheOptions),
-                token =>
-                {
-                    var query = db.KnowledgeBaseArticles
-                        .AsNoTracking()
-                        .Include(x => x.Category)
-                        .Where(x => x.IsPublished)
-                        .AsQueryable();
-
-                    if (!string.IsNullOrWhiteSpace(normalizedSearch))
-                    {
-                        query = query.Where(x => x.Title.Contains(normalizedSearch) || x.Body.Contains(normalizedSearch));
-                    }
-
-                    if (categoryId.HasValue)
-                    {
-                        query = query.Where(x => x.CategoryId == categoryId.Value);
-                    }
-
-                    return query
-                        .OrderBy(x => x.Title)
-                        .Select(x => new KnowledgeBaseArticleListItemResponse(
-                            x.Id,
-                            x.Title,
-                            x.Slug,
-                            x.CategoryId,
-                            x.Category.Name,
-                            x.IsPublished,
-                            x.UpdatedAt))
-                        .ToListAsync(token);
-                },
-                cancellationToken);
-
-            return Results.Ok(articles);
-        });
+            Results.Ok(await knowledgeBase.ListPublicArticlesAsync(search, categoryId, cancellationToken)));
 
         group.MapGet("/articles/{slug}", async (
             string slug,
-            SupportPilotDbContext db,
-            IApplicationCache cache,
-            IOptions<CacheOptions> cacheOptions,
+            KnowledgeBaseUseCases knowledgeBase,
             CancellationToken cancellationToken) =>
         {
-            var normalizedSlug = slug.Trim().ToLowerInvariant();
-            var article = await cache.GetOrCreateAsync(
-                CacheGroups.KnowledgeBase,
-                $"article:{normalizedSlug}",
-                KnowledgeBaseCacheExpiration(cacheOptions),
-                async token =>
-                {
-                    var entity = await db.KnowledgeBaseArticles
-                        .AsNoTracking()
-                        .Include(x => x.Category)
-                        .SingleOrDefaultAsync(x => x.Slug == normalizedSlug && x.IsPublished, token);
-
-                    return entity is null ? null : ToKnowledgeBaseArticleResponse(entity);
-                },
-                cancellationToken);
-
-            return article is null
-                ? Results.NotFound()
-                : Results.Ok(article);
+            var result = await knowledgeBase.GetPublicArticleAsync(slug, cancellationToken);
+            return result.IsSuccess ? Results.Ok(result.Value) : ToHttpResult(result);
         });
 
         var adminGroup = group.MapGroup("/admin").RequireAuthorization("SupportStaff");
 
-        adminGroup.MapGet("/categories", async (SupportPilotDbContext db, CancellationToken cancellationToken) =>
-            Results.Ok(await db.KnowledgeBaseCategories
-                .AsNoTracking()
-                .OrderBy(x => x.Name)
-                .Select(x => new KnowledgeBaseCategoryResponse(
-                    x.Id,
-                    x.Name,
-                    x.Description,
-                    x.Articles.Count))
-                .ToListAsync(cancellationToken)));
+        adminGroup.MapGet("/categories", async (KnowledgeBaseUseCases knowledgeBase, CancellationToken cancellationToken) =>
+            Results.Ok(await knowledgeBase.ListAdminCategoriesAsync(cancellationToken)));
 
         adminGroup.MapPost("/categories", async (
             UpsertKnowledgeBaseCategoryRequest request,
-            SupportPilotDbContext db,
-            IApplicationCache cache,
+            KnowledgeBaseUseCases knowledgeBase,
             CancellationToken cancellationToken) =>
         {
-            var category = new KnowledgeBaseCategory { Name = request.Name.Trim(), Description = request.Description };
-            db.KnowledgeBaseCategories.Add(category);
-            await db.SaveChangesAsync(cancellationToken);
-            await cache.InvalidateGroupAsync(CacheGroups.KnowledgeBase, cancellationToken);
-            return Results.Created(
-                $"/api/kb/admin/categories/{category.Id}",
-                new KnowledgeBaseCategoryResponse(category.Id, category.Name, category.Description, 0));
+            var result = await knowledgeBase.CreateCategoryAsync(request, cancellationToken);
+            return result.IsSuccess
+                ? Results.Created($"/api/kb/admin/categories/{result.Value!.Id}", result.Value)
+                : ToHttpResult(result);
         });
 
         adminGroup.MapPut("/categories/{id:guid}", async (
             Guid id,
             UpsertKnowledgeBaseCategoryRequest request,
-            SupportPilotDbContext db,
-            IApplicationCache cache,
+            KnowledgeBaseUseCases knowledgeBase,
             CancellationToken cancellationToken) =>
         {
-            var category = await db.KnowledgeBaseCategories
-                .Include(x => x.Articles)
-                .SingleOrDefaultAsync(x => x.Id == id, cancellationToken);
-            if (category is null)
-            {
-                return Results.NotFound();
-            }
-
-            category.Name = request.Name.Trim();
-            category.Description = request.Description;
-            await db.SaveChangesAsync(cancellationToken);
-            await cache.InvalidateGroupAsync(CacheGroups.KnowledgeBase, cancellationToken);
-
-            return Results.Ok(new KnowledgeBaseCategoryResponse(
-                category.Id,
-                category.Name,
-                category.Description,
-                category.Articles.Count));
+            var result = await knowledgeBase.UpdateCategoryAsync(id, request, cancellationToken);
+            return result.IsSuccess ? Results.Ok(result.Value) : ToHttpResult(result);
         });
 
         adminGroup.MapGet("/articles", async (
             [FromQuery] string? search,
             [FromQuery] Guid? categoryId,
             [FromQuery] bool? published,
-            SupportPilotDbContext db,
+            KnowledgeBaseUseCases knowledgeBase,
             CancellationToken cancellationToken) =>
-        {
-            var query = db.KnowledgeBaseArticles
-                .AsNoTracking()
-                .Include(x => x.Category)
-                .AsQueryable();
-
-            if (!string.IsNullOrWhiteSpace(search))
-            {
-                query = query.Where(x => x.Title.Contains(search) || x.Body.Contains(search) || x.Slug.Contains(search));
-            }
-
-            if (categoryId.HasValue)
-            {
-                query = query.Where(x => x.CategoryId == categoryId.Value);
-            }
-
-            if (published.HasValue)
-            {
-                query = query.Where(x => x.IsPublished == published.Value);
-            }
-
-            var articles = await query
-                .OrderBy(x => x.Title)
-                .Select(x => new KnowledgeBaseArticleListItemResponse(
-                    x.Id,
-                    x.Title,
-                    x.Slug,
-                    x.CategoryId,
-                    x.Category.Name,
-                    x.IsPublished,
-                    x.UpdatedAt))
-                .ToListAsync(cancellationToken);
-
-            return Results.Ok(articles);
-        });
+            Results.Ok(await knowledgeBase.ListAdminArticlesAsync(search, categoryId, published, cancellationToken)));
 
         adminGroup.MapGet("/articles/{id:guid}", async (
             Guid id,
-            SupportPilotDbContext db,
+            KnowledgeBaseUseCases knowledgeBase,
             CancellationToken cancellationToken) =>
         {
-            var article = await db.KnowledgeBaseArticles
-                .AsNoTracking()
-                .Include(x => x.Category)
-                .SingleOrDefaultAsync(x => x.Id == id, cancellationToken);
-
-            return article is null
-                ? Results.NotFound()
-                : Results.Ok(ToKnowledgeBaseArticleResponse(article));
+            var result = await knowledgeBase.GetAdminArticleAsync(id, cancellationToken);
+            return result.IsSuccess ? Results.Ok(result.Value) : ToHttpResult(result);
         });
 
         adminGroup.MapPost("/articles", async (
             UpsertKnowledgeBaseArticleRequest request,
-            SupportPilotDbContext db,
-            IApplicationCache cache,
+            KnowledgeBaseUseCases knowledgeBase,
             CancellationToken cancellationToken) =>
         {
-            var article = new KnowledgeBaseArticle
-            {
-                CategoryId = request.CategoryId,
-                Title = request.Title.Trim(),
-                Slug = request.Slug.Trim().ToLowerInvariant(),
-                Body = request.Body,
-                IsPublished = request.IsPublished
-            };
-            db.KnowledgeBaseArticles.Add(article);
-            await db.SaveChangesAsync(cancellationToken);
-            await cache.InvalidateGroupAsync(CacheGroups.KnowledgeBase, cancellationToken);
-            var created = await db.KnowledgeBaseArticles
-                .AsNoTracking()
-                .Include(x => x.Category)
-                .SingleAsync(x => x.Id == article.Id, cancellationToken);
-            return Results.Created($"/api/kb/admin/articles/{article.Id}", ToKnowledgeBaseArticleResponse(created));
+            var result = await knowledgeBase.CreateArticleAsync(request, cancellationToken);
+            return result.IsSuccess
+                ? Results.Created($"/api/kb/admin/articles/{result.Value!.Id}", result.Value)
+                : ToHttpResult(result);
         });
 
         adminGroup.MapPut("/articles/{id:guid}", async (
             Guid id,
             UpsertKnowledgeBaseArticleRequest request,
-            SupportPilotDbContext db,
-            IApplicationCache cache,
+            KnowledgeBaseUseCases knowledgeBase,
             CancellationToken cancellationToken) =>
         {
-            var article = await db.KnowledgeBaseArticles.SingleOrDefaultAsync(x => x.Id == id, cancellationToken);
-            if (article is null)
-            {
-                return Results.NotFound();
-            }
-
-            article.CategoryId = request.CategoryId;
-            article.Title = request.Title.Trim();
-            article.Slug = request.Slug.Trim().ToLowerInvariant();
-            article.Body = request.Body;
-            article.IsPublished = request.IsPublished;
-            article.UpdatedAt = DateTimeOffset.UtcNow;
-            await db.SaveChangesAsync(cancellationToken);
-            await cache.InvalidateGroupAsync(CacheGroups.KnowledgeBase, cancellationToken);
-            var updated = await db.KnowledgeBaseArticles
-                .AsNoTracking()
-                .Include(x => x.Category)
-                .SingleAsync(x => x.Id == id, cancellationToken);
-            return Results.Ok(ToKnowledgeBaseArticleResponse(updated));
+            var result = await knowledgeBase.UpdateArticleAsync(id, request, cancellationToken);
+            return result.IsSuccess ? Results.Ok(result.Value) : ToHttpResult(result);
         });
 
         return app;
@@ -689,123 +511,8 @@ public static class EndpointMappingExtensions
     {
         var group = app.MapGroup("/api/reports").WithTags("Reports").RequireAuthorization("SupportStaff");
 
-        group.MapGet("/overview", async (
-            SupportPilotDbContext db,
-            IApplicationCache cache,
-            IOptions<CacheOptions> cacheOptions,
-            CancellationToken cancellationToken) =>
-        {
-            var result = await cache.GetOrCreateAsync(
-                CacheGroups.Reports,
-                "overview",
-                ReportsCacheExpiration(cacheOptions),
-                async token =>
-                {
-                    var now = DateTimeOffset.UtcNow;
-                    var dueSoon = now.AddHours(4);
-                    var openStatuses = new[] { TicketStatus.New, TicketStatus.InProgress, TicketStatus.WaitingForCustomer };
-                    var tickets = db.Tickets.AsNoTracking();
-
-                    var byStatus = await tickets
-                        .GroupBy(x => x.Status)
-                        .Select(x => new DashboardBucketResponse(x.Key.ToString(), x.Count()))
-                        .ToListAsync(token);
-                    var byPriority = await tickets
-                        .GroupBy(x => x.Priority)
-                        .Select(x => new DashboardBucketResponse(x.Key.ToString(), x.Count()))
-                        .ToListAsync(token);
-                    var recentTickets = await db.Tickets
-                        .FromSqlRaw("""
-                            SELECT *
-                            FROM "Tickets"
-                            ORDER BY "UpdatedAt" DESC
-                            LIMIT 8
-                            """)
-                        .AsNoTracking()
-                        .Include(x => x.Category)
-                        .Include(x => x.AssignedTo)
-                        .Select(x => new DashboardTicketResponse(
-                            x.Id,
-                            x.Number,
-                            x.Title,
-                            x.Status,
-                            x.Priority,
-                            x.Category.Name,
-                            x.AssignedTo == null ? null : x.AssignedTo.DisplayName,
-                            x.UpdatedAt,
-                            x.FirstResponseDueAt,
-                            x.ResolutionDueAt,
-                            x.FirstResponseBreached,
-                            x.ResolutionBreached))
-                        .ToListAsync(token);
-                    var slaBreaches = await db.Tickets
-                        .FromSqlRaw("""
-                            SELECT *
-                            FROM "Tickets"
-                            WHERE "FirstResponseBreached" OR "ResolutionBreached"
-                            ORDER BY "UpdatedAt" DESC
-                            LIMIT 8
-                            """)
-                        .AsNoTracking()
-                        .Include(x => x.Category)
-                        .Include(x => x.AssignedTo)
-                        .Select(x => new DashboardTicketResponse(
-                            x.Id,
-                            x.Number,
-                            x.Title,
-                            x.Status,
-                            x.Priority,
-                            x.Category.Name,
-                            x.AssignedTo == null ? null : x.AssignedTo.DisplayName,
-                            x.UpdatedAt,
-                            x.FirstResponseDueAt,
-                            x.ResolutionDueAt,
-                            x.FirstResponseBreached,
-                            x.ResolutionBreached))
-                        .ToListAsync(token);
-                    var overdueTickets = await db.Database
-                        .SqlQuery<int>($"""
-                            SELECT COUNT(*) AS "Value"
-                            FROM "Tickets"
-                            WHERE "Status" IN (0, 1, 2)
-                              AND (
-                                  ("FirstResponseDueAt" IS NOT NULL AND "FirstResponseAt" IS NULL AND "FirstResponseDueAt" < {now})
-                                  OR ("ResolutionDueAt" IS NOT NULL AND "ResolvedAt" IS NULL AND "ResolutionDueAt" < {now})
-                              )
-                            """)
-                        .SingleAsync(token);
-                    var dueSoonTickets = await db.Database
-                        .SqlQuery<int>($"""
-                            SELECT COUNT(*) AS "Value"
-                            FROM "Tickets"
-                            WHERE "Status" IN (0, 1, 2)
-                              AND (
-                                  ("FirstResponseDueAt" IS NOT NULL AND "FirstResponseAt" IS NULL AND "FirstResponseDueAt" >= {now} AND "FirstResponseDueAt" <= {dueSoon})
-                                  OR ("ResolutionDueAt" IS NOT NULL AND "ResolvedAt" IS NULL AND "ResolutionDueAt" >= {now} AND "ResolutionDueAt" <= {dueSoon})
-                              )
-                            """)
-                        .SingleAsync(token);
-
-                    return new DashboardOverviewResponse(
-                        now,
-                        await tickets.CountAsync(token),
-                        await tickets.CountAsync(x => openStatuses.Contains(x.Status), token),
-                        await tickets.CountAsync(x => x.Status == TicketStatus.Resolved || x.Status == TicketStatus.Closed, token),
-                        await tickets.CountAsync(x => x.AssignedToId == null && openStatuses.Contains(x.Status), token),
-                        overdueTickets,
-                        dueSoonTickets,
-                        await tickets.CountAsync(x => x.FirstResponseBreached || x.ResolutionBreached, token),
-                        await tickets.CountAsync(x => openStatuses.Contains(x.Status) && x.Priority == TicketPriority.Critical, token),
-                        await tickets.CountAsync(x => openStatuses.Contains(x.Status) && x.Priority == TicketPriority.High, token),
-                        byStatus.OrderBy(x => x.Key).ToList(),
-                        byPriority.OrderBy(x => x.Key).ToList(),
-                        recentTickets,
-                        slaBreaches);
-                },
-                cancellationToken);
-
-            return Results.Ok(result);
-        });
+        group.MapGet("/overview", async (ReportUseCases reports, CancellationToken cancellationToken) =>
+            Results.Ok(await reports.GetOverviewAsync(cancellationToken)));
 
         return app;
     }
@@ -881,14 +588,6 @@ public static class EndpointMappingExtensions
     private static bool CanReadTicket(CurrentUser currentUser, Ticket ticket) =>
         currentUser.IsInRole("Admin") || currentUser.IsInRole("Agent") || ticket.CreatedById == currentUser.Id;
 
-    private static TimeSpan KnowledgeBaseCacheExpiration(IOptions<CacheOptions> options) =>
-        TimeSpan.FromSeconds(NormalizeCacheSeconds(options.Value.KnowledgeBaseExpirationSeconds, 300));
-
-    private static TimeSpan ReportsCacheExpiration(IOptions<CacheOptions> options) =>
-        TimeSpan.FromSeconds(NormalizeCacheSeconds(options.Value.ReportsExpirationSeconds, 30));
-
-    private static int NormalizeCacheSeconds(int seconds, int fallback) => seconds > 0 ? seconds : fallback;
-
     private static UserProfileResponse ToProfile(User user) =>
         new(user.Id, user.Email, user.DisplayName, user.UserRoles.Select(x => x.Role.Name).Order().ToArray());
 
@@ -905,17 +604,5 @@ public static class EndpointMappingExtensions
                 operation.Description = description;
                 return operation;
             });
-
-    private static KnowledgeBaseArticleResponse ToKnowledgeBaseArticleResponse(KnowledgeBaseArticle article) =>
-        new(
-            article.Id,
-            article.Title,
-            article.Slug,
-            article.Body,
-            article.CategoryId,
-            article.Category.Name,
-            article.IsPublished,
-            article.CreatedAt,
-            article.UpdatedAt);
 
 }

@@ -41,7 +41,7 @@ public static class EndpointMappingExtensions
                 "Register a customer account",
                 "Creates a new customer account and returns the created user profile.")
             .Produces<UserProfileResponse>(StatusCodes.Status201Created)
-            .Produces(StatusCodes.Status409Conflict);
+            .Produces<ProblemDetails>(StatusCodes.Status409Conflict);
 
         group.MapPost("/login", async (
             LoginRequest request,
@@ -55,7 +55,7 @@ public static class EndpointMappingExtensions
                 "Authenticate a user",
                 "Validates user credentials and returns a JWT bearer token with the current user profile.")
             .Produces<AuthResponse>()
-            .Produces(StatusCodes.Status401Unauthorized);
+            .Produces<ProblemDetails>(StatusCodes.Status401Unauthorized);
 
         group.MapGet("/me", async (
             CurrentUser currentUser,
@@ -70,7 +70,7 @@ public static class EndpointMappingExtensions
                 "Get current user",
                 "Returns the authenticated user's profile and role list.")
             .Produces<UserProfileResponse>()
-            .Produces(StatusCodes.Status401Unauthorized);
+            .Produces<ProblemDetails>(StatusCodes.Status401Unauthorized);
 
         return app;
     }
@@ -98,7 +98,7 @@ public static class EndpointMappingExtensions
                 "List ticket assignees",
                 "Returns active administrators and agents that can be assigned to tickets. Requires support staff access.")
             .Produces<IReadOnlyList<UserProfileResponse>>()
-            .Produces(StatusCodes.Status403Forbidden);
+            .Produces<ProblemDetails>(StatusCodes.Status403Forbidden);
 
         group.MapGet("/", async (
             [AsParameters] TicketQuery query,
@@ -135,7 +135,7 @@ public static class EndpointMappingExtensions
                 "Create a ticket",
                 "Creates a new support ticket for the current user and initializes SLA deadlines from the active policy.")
             .Produces<TicketCreatedResponse>(StatusCodes.Status201Created)
-            .Produces(StatusCodes.Status400BadRequest);
+            .Produces<ProblemDetails>(StatusCodes.Status400BadRequest);
 
         group.MapGet("/{id:guid}", async (
             Guid id,
@@ -150,8 +150,8 @@ public static class EndpointMappingExtensions
                 "Get ticket details",
                 "Returns a ticket with visible comments, attachments and timeline entries after validating read access.")
             .Produces<TicketDetailResponse>()
-            .Produces(StatusCodes.Status403Forbidden)
-            .Produces(StatusCodes.Status404NotFound);
+            .Produces<ProblemDetails>(StatusCodes.Status403Forbidden)
+            .Produces<ProblemDetails>(StatusCodes.Status404NotFound);
 
         group.MapPatch("/{id:guid}/status", async (
             Guid id,
@@ -173,9 +173,9 @@ public static class EndpointMappingExtensions
                 "Change ticket status",
                 "Moves a ticket through the workflow when the requested transition is allowed for the current actor.")
             .Produces(StatusCodes.Status204NoContent)
-            .Produces(StatusCodes.Status400BadRequest)
-            .Produces(StatusCodes.Status403Forbidden)
-            .Produces(StatusCodes.Status404NotFound);
+            .Produces<ProblemDetails>(StatusCodes.Status400BadRequest)
+            .Produces<ProblemDetails>(StatusCodes.Status403Forbidden)
+            .Produces<ProblemDetails>(StatusCodes.Status404NotFound);
 
         group.MapPatch("/{id:guid}/assignee", async (
             Guid id,
@@ -198,9 +198,9 @@ public static class EndpointMappingExtensions
                 "Assign a ticket",
                 "Assigns or clears the support user responsible for a ticket. Requires support staff access.")
             .Produces(StatusCodes.Status204NoContent)
-            .Produces(StatusCodes.Status400BadRequest)
-            .Produces(StatusCodes.Status403Forbidden)
-            .Produces(StatusCodes.Status404NotFound);
+            .Produces<ProblemDetails>(StatusCodes.Status400BadRequest)
+            .Produces<ProblemDetails>(StatusCodes.Status403Forbidden)
+            .Produces<ProblemDetails>(StatusCodes.Status404NotFound);
 
         group.MapPost("/{id:guid}/comments", async (
             Guid id,
@@ -224,9 +224,9 @@ public static class EndpointMappingExtensions
                 "Add a ticket comment",
                 "Adds a public comment or, for support staff, an internal note to a ticket.")
             .Produces(StatusCodes.Status201Created)
-            .Produces(StatusCodes.Status400BadRequest)
-            .Produces(StatusCodes.Status403Forbidden)
-            .Produces(StatusCodes.Status404NotFound);
+            .Produces<ProblemDetails>(StatusCodes.Status400BadRequest)
+            .Produces<ProblemDetails>(StatusCodes.Status403Forbidden)
+            .Produces<ProblemDetails>(StatusCodes.Status404NotFound);
 
         group.MapPost("/{id:guid}/attachments", async (
             Guid id,
@@ -238,14 +238,20 @@ public static class EndpointMappingExtensions
         {
             if (!request.HasFormContentType)
             {
-                return Results.BadRequest(new { message = "Expected multipart/form-data with a file field." });
+                return ToProblemDetails(
+                    StatusCodes.Status400BadRequest,
+                    "Validation failed",
+                    "Expected multipart/form-data with a file field.");
             }
 
             var form = await request.ReadFormAsync(cancellationToken);
             var file = form.Files.GetFile("file");
             if (file is null || file.Length == 0)
             {
-                return Results.BadRequest(new { message = "File was not provided." });
+                return ToProblemDetails(
+                    StatusCodes.Status400BadRequest,
+                    "Validation failed",
+                    "File was not provided.");
             }
 
             await using var fileStream = file.OpenReadStream();
@@ -270,9 +276,9 @@ public static class EndpointMappingExtensions
                 "Uploads a file attachment to the configured storage provider and stores attachment metadata on the ticket.")
             .Accepts<IFormFile>("multipart/form-data")
             .Produces<TicketAttachmentCreatedResponse>(StatusCodes.Status201Created)
-            .Produces(StatusCodes.Status400BadRequest)
-            .Produces(StatusCodes.Status403Forbidden)
-            .Produces(StatusCodes.Status404NotFound);
+            .Produces<ProblemDetails>(StatusCodes.Status400BadRequest)
+            .Produces<ProblemDetails>(StatusCodes.Status403Forbidden)
+            .Produces<ProblemDetails>(StatusCodes.Status404NotFound);
 
         group.MapGet("/{ticketId:guid}/attachments/{attachmentId:guid}", async (
             Guid ticketId,
@@ -295,8 +301,8 @@ public static class EndpointMappingExtensions
                 "Download a ticket attachment",
                 "Downloads a ticket attachment after validating ticket read access.")
             .Produces(StatusCodes.Status200OK)
-            .Produces(StatusCodes.Status403Forbidden)
-            .Produces(StatusCodes.Status404NotFound);
+            .Produces<ProblemDetails>(StatusCodes.Status403Forbidden)
+            .Produces<ProblemDetails>(StatusCodes.Status404NotFound);
 
         group.MapDelete("/{ticketId:guid}/attachments/{attachmentId:guid}", async (
             Guid ticketId,
@@ -318,8 +324,8 @@ public static class EndpointMappingExtensions
                 "Delete a ticket attachment",
                 "Deletes an attachment metadata record and removes the object from the configured storage provider.")
             .Produces(StatusCodes.Status204NoContent)
-            .Produces(StatusCodes.Status403Forbidden)
-            .Produces(StatusCodes.Status404NotFound);
+            .Produces<ProblemDetails>(StatusCodes.Status403Forbidden)
+            .Produces<ProblemDetails>(StatusCodes.Status404NotFound);
 
         return app;
     }
@@ -360,8 +366,8 @@ public static class EndpointMappingExtensions
                 "Update an administrative user",
                 "Updates display name, active state and assigned roles. The last active administrator is protected from deactivation or role removal.")
             .Produces<AdminUserResponse>()
-            .Produces(StatusCodes.Status400BadRequest)
-            .Produces(StatusCodes.Status404NotFound);
+            .Produces<ProblemDetails>(StatusCodes.Status400BadRequest)
+            .Produces<ProblemDetails>(StatusCodes.Status404NotFound);
 
         group.MapGet("/categories", async (AdminUseCases admin, CancellationToken cancellationToken) =>
             Results.Ok(await admin.ListTicketCategoriesAsync(cancellationToken)))
@@ -384,7 +390,7 @@ public static class EndpointMappingExtensions
                 "Create a ticket category",
                 "Creates a category that can be made available for new tickets.")
             .Produces<TicketCategory>(StatusCodes.Status201Created)
-            .Produces(StatusCodes.Status400BadRequest);
+            .Produces<ProblemDetails>(StatusCodes.Status400BadRequest);
 
         group.MapPut("/categories/{id:guid}", async (
             Guid id,
@@ -399,8 +405,8 @@ public static class EndpointMappingExtensions
                 "Update a ticket category",
                 "Updates category name, description and active state.")
             .Produces<TicketCategory>()
-            .Produces(StatusCodes.Status400BadRequest)
-            .Produces(StatusCodes.Status404NotFound);
+            .Produces<ProblemDetails>(StatusCodes.Status400BadRequest)
+            .Produces<ProblemDetails>(StatusCodes.Status404NotFound);
 
         group.MapGet("/sla-policies", async (AdminUseCases admin, CancellationToken cancellationToken) =>
             Results.Ok(await admin.ListSlaPoliciesAsync(cancellationToken)))
@@ -422,8 +428,8 @@ public static class EndpointMappingExtensions
                 "Update an SLA policy",
                 "Updates SLA thresholds, priority mapping and active state, then invalidates report cache.")
             .Produces<SlaPolicy>()
-            .Produces(StatusCodes.Status400BadRequest)
-            .Produces(StatusCodes.Status404NotFound);
+            .Produces<ProblemDetails>(StatusCodes.Status400BadRequest)
+            .Produces<ProblemDetails>(StatusCodes.Status404NotFound);
 
         group.MapGet("/audit", async (AdminUseCases admin, CancellationToken cancellationToken) =>
             Results.Ok(await admin.ListRecentAuditLogsAsync(cancellationToken)))
@@ -474,7 +480,7 @@ public static class EndpointMappingExtensions
                 "Get public knowledge base article",
                 "Returns a published article by slug.")
             .Produces<KnowledgeBaseArticleResponse>()
-            .Produces(StatusCodes.Status404NotFound);
+            .Produces<ProblemDetails>(StatusCodes.Status404NotFound);
 
         var adminGroup = group.MapGroup("/admin").RequireAuthorization("SupportStaff");
 
@@ -484,7 +490,7 @@ public static class EndpointMappingExtensions
                 "List knowledge base categories for administration",
                 "Returns all knowledge base categories with article counts. Requires support staff access.")
             .Produces<IReadOnlyList<KnowledgeBaseCategoryResponse>>()
-            .Produces(StatusCodes.Status403Forbidden);
+            .Produces<ProblemDetails>(StatusCodes.Status403Forbidden);
 
         adminGroup.MapPost("/categories", async (
             UpsertKnowledgeBaseCategoryRequest request,
@@ -500,8 +506,8 @@ public static class EndpointMappingExtensions
                 "Create a knowledge base category",
                 "Creates a category used to organize knowledge base articles. Requires support staff access.")
             .Produces<KnowledgeBaseCategoryResponse>(StatusCodes.Status201Created)
-            .Produces(StatusCodes.Status400BadRequest)
-            .Produces(StatusCodes.Status403Forbidden);
+            .Produces<ProblemDetails>(StatusCodes.Status400BadRequest)
+            .Produces<ProblemDetails>(StatusCodes.Status403Forbidden);
 
         adminGroup.MapPut("/categories/{id:guid}", async (
             Guid id,
@@ -516,9 +522,9 @@ public static class EndpointMappingExtensions
                 "Update a knowledge base category",
                 "Updates a knowledge base category name and description. Requires support staff access.")
             .Produces<KnowledgeBaseCategoryResponse>()
-            .Produces(StatusCodes.Status400BadRequest)
-            .Produces(StatusCodes.Status403Forbidden)
-            .Produces(StatusCodes.Status404NotFound);
+            .Produces<ProblemDetails>(StatusCodes.Status400BadRequest)
+            .Produces<ProblemDetails>(StatusCodes.Status403Forbidden)
+            .Produces<ProblemDetails>(StatusCodes.Status404NotFound);
 
         adminGroup.MapGet("/articles", async (
             [FromQuery] string? search,
@@ -531,7 +537,7 @@ public static class EndpointMappingExtensions
                 "List knowledge base articles for administration",
                 "Returns draft and published articles filtered by optional search text, category and publication state.")
             .Produces<IReadOnlyList<KnowledgeBaseArticleListItemResponse>>()
-            .Produces(StatusCodes.Status403Forbidden);
+            .Produces<ProblemDetails>(StatusCodes.Status403Forbidden);
 
         adminGroup.MapGet("/articles/{id:guid}", async (
             Guid id,
@@ -545,8 +551,8 @@ public static class EndpointMappingExtensions
                 "Get knowledge base article for administration",
                 "Returns an article by identifier regardless of publication state. Requires support staff access.")
             .Produces<KnowledgeBaseArticleResponse>()
-            .Produces(StatusCodes.Status403Forbidden)
-            .Produces(StatusCodes.Status404NotFound);
+            .Produces<ProblemDetails>(StatusCodes.Status403Forbidden)
+            .Produces<ProblemDetails>(StatusCodes.Status404NotFound);
 
         adminGroup.MapPost("/articles", async (
             UpsertKnowledgeBaseArticleRequest request,
@@ -562,8 +568,8 @@ public static class EndpointMappingExtensions
                 "Create a knowledge base article",
                 "Creates a draft or published knowledge base article. Requires support staff access.")
             .Produces<KnowledgeBaseArticleResponse>(StatusCodes.Status201Created)
-            .Produces(StatusCodes.Status400BadRequest)
-            .Produces(StatusCodes.Status403Forbidden);
+            .Produces<ProblemDetails>(StatusCodes.Status400BadRequest)
+            .Produces<ProblemDetails>(StatusCodes.Status403Forbidden);
 
         adminGroup.MapPut("/articles/{id:guid}", async (
             Guid id,
@@ -578,9 +584,9 @@ public static class EndpointMappingExtensions
                 "Update a knowledge base article",
                 "Updates article content, slug, category and publication state. Requires support staff access.")
             .Produces<KnowledgeBaseArticleResponse>()
-            .Produces(StatusCodes.Status400BadRequest)
-            .Produces(StatusCodes.Status403Forbidden)
-            .Produces(StatusCodes.Status404NotFound);
+            .Produces<ProblemDetails>(StatusCodes.Status400BadRequest)
+            .Produces<ProblemDetails>(StatusCodes.Status403Forbidden)
+            .Produces<ProblemDetails>(StatusCodes.Status404NotFound);
 
         return app;
     }
@@ -600,7 +606,7 @@ public static class EndpointMappingExtensions
                 "Get support dashboard overview",
                 "Returns operational ticket counts, SLA pressure, recent tickets and SLA breach lists for support staff.")
             .Produces<DashboardOverviewResponse>()
-            .Produces(StatusCodes.Status403Forbidden);
+            .Produces<ProblemDetails>(StatusCodes.Status403Forbidden);
 
         return app;
     }
@@ -637,7 +643,7 @@ public static class EndpointMappingExtensions
                 "Mark notification as read",
                 "Marks a personal notification owned by the current user as read.")
             .Produces(StatusCodes.Status204NoContent)
-            .Produces(StatusCodes.Status404NotFound);
+            .Produces<ProblemDetails>(StatusCodes.Status404NotFound);
 
         return app;
     }
@@ -658,13 +664,20 @@ public static class EndpointMappingExtensions
     private static IResult ToHttpError(ApplicationError error, string? message) =>
         error switch
         {
-            ApplicationError.Validation => Results.BadRequest(new { message }),
-            ApplicationError.NotFound => Results.NotFound(new { message }),
-            ApplicationError.Unauthorized => Results.Unauthorized(),
-            ApplicationError.Forbidden => Results.Forbid(),
-            ApplicationError.Conflict => Results.Conflict(new { message }),
-            _ => Results.BadRequest(new { message })
+            ApplicationError.Validation => ToProblemDetails(StatusCodes.Status400BadRequest, "Validation failed", message),
+            ApplicationError.NotFound => ToProblemDetails(StatusCodes.Status404NotFound, "Resource not found", message),
+            ApplicationError.Unauthorized => ToProblemDetails(StatusCodes.Status401Unauthorized, "Unauthorized", message),
+            ApplicationError.Forbidden => ToProblemDetails(StatusCodes.Status403Forbidden, "Forbidden", message),
+            ApplicationError.Conflict => ToProblemDetails(StatusCodes.Status409Conflict, "Conflict", message),
+            _ => ToProblemDetails(StatusCodes.Status400BadRequest, "Request failed", message)
         };
+
+    private static IResult ToProblemDetails(int statusCode, string title, string? detail) =>
+        Results.Problem(
+            statusCode: statusCode,
+            title: title,
+            detail: string.IsNullOrWhiteSpace(detail) ? title : detail,
+            type: $"https://httpstatuses.com/{statusCode}");
 
     private static TicketActor ToTicketActor(this CurrentUser currentUser) =>
         new(currentUser.Id, currentUser.IsInRole("Admin"), currentUser.IsInRole("Admin") || currentUser.IsInRole("Agent"));

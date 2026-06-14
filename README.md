@@ -121,7 +121,7 @@ The main public API surface generates XML documentation during build and publish
 - `SupportPilot.Domain`
 - `SupportPilot.Notifications.Worker`
 
-Swagger includes XML comments from API, Contracts, Domain and Application assemblies when the files are present in the application output directory. This documents endpoint groups, auth/ticket/admin use cases, request/response DTOs, domain entities, enums and application ports. Minimal API routes that need route-level text use explicit OpenAPI metadata through `WithRouteDocs(...)`.
+Swagger includes XML comments from API, Contracts, Domain and Application assemblies when the files are present in the application output directory. This documents endpoint groups, auth/ticket/admin/knowledge-base/report use cases, request/response DTOs, domain entities, enums and application ports. Minimal API routes that need route-level text use explicit OpenAPI metadata through `WithRouteDocs(...)`.
 
 Build output location:
 
@@ -230,6 +230,8 @@ Application -> Domain / Contracts
 Contracts -> Domain
 ```
 
+Knowledge base workflows live in `SupportPilot.Application/KnowledgeBase/KnowledgeBaseUseCases.cs`; support dashboard report queries live in `SupportPilot.Application/Reports/ReportUseCases.cs`. API endpoints stay as request/response adapters and map `ApplicationResult<T>` to HTTP responses.
+
 HTTP-слой принимает запросы и возвращает ответы. Бизнес-логика авторизации находится в `SupportPilot.Application/Auth/AuthUseCases.cs`, а бизнес-логика администрирования пользователей, категорий тикетов и SLA policies - в `SupportPilot.Application/Admin/AdminUseCases.cs`.
 
 Application определяет порты:
@@ -305,4 +307,4 @@ dotnet publish src/SupportPilot.Notifications.Worker/SupportPilot.Notifications.
 
 ## Следующие технические шаги
 
-- Move knowledge base and report query logic into Application use cases so the remaining API endpoints stay thin request/response adapters.
+- Move notification inbox and audit-log read flows into Application use cases so the remaining API endpoints stay thin request/response adapters.

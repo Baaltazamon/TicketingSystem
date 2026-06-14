@@ -35,6 +35,12 @@ public interface ISupportPilotDbContext
     /// <summary>SLA policies.</summary>
     DbSet<SlaPolicy> SlaPolicies { get; }
 
+    /// <summary>Knowledge base categories.</summary>
+    DbSet<KnowledgeBaseCategory> KnowledgeBaseCategories { get; }
+
+    /// <summary>Knowledge base articles.</summary>
+    DbSet<KnowledgeBaseArticle> KnowledgeBaseArticles { get; }
+
     /// <summary>User and global notifications.</summary>
     DbSet<Notification> Notifications { get; }
 

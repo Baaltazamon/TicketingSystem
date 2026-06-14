@@ -1,4 +1,4 @@
-namespace SupportPilot.Infrastructure.Services;
+namespace SupportPilot.Application.Abstractions;
 
 /// <summary>
 /// Configures application response caching.

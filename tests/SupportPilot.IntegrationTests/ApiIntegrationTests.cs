@@ -405,6 +405,42 @@ public sealed class ApiIntegrationTests(SupportPilotApiFactory factory) : IClass
     }
 
     [Fact]
+    public async Task NotificationReadEndpointMarksOwnedNotificationAsRead()
+    {
+        var client = await CreateAuthenticatedClientAsync();
+        Guid notificationId;
+
+        using (var scope = factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<SupportPilotDbContext>();
+            var adminId = await db.Users
+                .Where(x => x.Email == "admin@supportpilot.local")
+                .Select(x => x.Id)
+                .SingleAsync();
+
+            var notification = new Notification
+            {
+                UserId = adminId,
+                Type = NotificationType.TicketUpdated,
+                Message = "Read endpoint test"
+            };
+            db.Notifications.Add(notification);
+            await db.SaveChangesAsync();
+            notificationId = notification.Id;
+        }
+
+        var response = await client.PostAsync($"/api/notifications/{notificationId}/read", content: null);
+
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+        using var verifyScope = factory.Services.CreateScope();
+        var verifyDb = verifyScope.ServiceProvider.GetRequiredService<SupportPilotDbContext>();
+        Assert.True(await verifyDb.Notifications
+            .Where(x => x.Id == notificationId)
+            .Select(x => x.IsRead)
+            .SingleAsync());
+    }
+
+    [Fact]
     public async Task RegistersLogsInAndReturnsCurrentUser()
     {
         var client = factory.CreateClient();

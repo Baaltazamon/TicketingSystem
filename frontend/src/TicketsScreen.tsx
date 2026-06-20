@@ -113,28 +113,36 @@ export function TicketsScreen({ token, user }: { token: string; user: UserProfil
   return (
     <section className="tickets-workspace">
       <div className="tickets-left">
-        <TicketsToolbar
-          categories={categories}
-          query={query}
-          canUseSupportFilters={canUseSupportActions}
-          onChange={(nextQuery) => setQuery(nextQuery)}
-          onApply={(nextQuery) => loadTickets(nextQuery)}
-        />
-        <CreateTicketPanel
-          categories={categories}
-          token={token}
-          canCreate={categories.length > 0}
-          onCreated={(ticketId) => {
-            setSelectedTicketId(ticketId);
-            loadTickets(query);
-          }}
-        />
-        <TicketList
-          isLoading={isLoadingList}
-          selectedTicketId={selectedTicketId}
-          tickets={tickets}
-          onSelect={setSelectedTicketId}
-        />
+        <section className="tickets-list-shell">
+          <header className="tickets-list-header">
+            <div>
+              <span className="eyebrow">Ticket queue</span>
+              <h2>Case work</h2>
+            </div>
+            <CreateTicketPanel
+              categories={categories}
+              token={token}
+              canCreate={categories.length > 0}
+              onCreated={(ticketId) => {
+                setSelectedTicketId(ticketId);
+                loadTickets(query);
+              }}
+            />
+          </header>
+          <TicketsToolbar
+            categories={categories}
+            query={query}
+            canUseSupportFilters={canUseSupportActions}
+            onChange={(nextQuery) => setQuery(nextQuery)}
+            onApply={(nextQuery) => loadTickets(nextQuery)}
+          />
+          <TicketList
+            isLoading={isLoadingList}
+            selectedTicketId={selectedTicketId}
+            tickets={tickets}
+            onSelect={setSelectedTicketId}
+          />
+        </section>
       </div>
 
       <div className="tickets-right">
@@ -308,7 +316,7 @@ function CreateTicketPanel({
   return (
     <section className="create-ticket-panel">
       <button className="secondary-action" type="button" onClick={() => setIsOpen((value) => !value)}>
-        {isOpen ? "Close create form" : "Create ticket"}
+        {isOpen ? "Close" : "+ Create ticket"}
       </button>
       {!canCreate ? (
         <p className="helper-text">Active categories are required to create a ticket.</p>
@@ -396,16 +404,17 @@ function TicketList({
           onClick={() => onSelect(ticket.id)}
           type="button"
         >
-          <span className="ticket-number">{ticket.number}</span>
-          <strong>{ticket.title}</strong>
-          <span>{ticket.category}</span>
-          <span className="queue-meta">
-            <Badge tone="status">{formatStatus(ticket.status)}</Badge>
-            <Badge tone={ticket.priority === 3 || ticket.priority === "Critical" ? "danger" : "neutral"}>
-              {formatPriority(ticket.priority)}
-            </Badge>
+          <span className="queue-item-topline">
+            <span className="ticket-number">{ticket.number}</span>
+            <span className="queue-meta">
+              <Badge tone="status">{formatStatus(ticket.status)}</Badge>
+              <Badge tone={isHighPriority(ticket.priority) ? "danger" : "neutral"}>{formatPriority(ticket.priority)}</Badge>
+            </span>
           </span>
-          <small>Updated {formatDate(ticket.updatedAt)}</small>
+          <strong>{ticket.title}</strong>
+          <small>
+            {ticket.category} · created {formatQueueDate(ticket.createdAt)} · due {formatQueueDate(ticket.resolutionDueAt)}
+          </small>
         </button>
       ))}
     </div>
@@ -520,40 +529,44 @@ function WorkflowPanel({
   return (
     <section className="workflow-panel">
       <h3>Workflow controls</h3>
-      <div className="workflow-grid">
-        <label>
-          Status
-          <select value={status} onChange={(event) => setStatus(Number(event.target.value))}>
-            {ticketStatuses.map((item) => (
-              <option key={item.value} value={item.value}>
-                {item.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          Reason
-          <input value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Optional timeline note" />
-        </label>
-        <button type="button" disabled={isSaving} onClick={saveStatus}>
-          Update status
-        </button>
-      </div>
-      <div className="workflow-grid">
-        <label>
-          Assignee
-          <select value={assignedToId} onChange={(event) => setAssignedToId(event.target.value)}>
-            <option value="">Unassigned</option>
-            {supportUsers.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.displayName}
-              </option>
-            ))}
-          </select>
-        </label>
-        <button type="button" disabled={isSaving || supportUsers.length === 0} onClick={saveAssignee}>
-          Save assignee
-        </button>
+      <div className="workflow-actions">
+        <div className="workflow-action-card">
+          <span>Status</span>
+          <label>
+            Next state
+            <select value={status} onChange={(event) => setStatus(Number(event.target.value))}>
+              {ticketStatuses.map((item) => (
+                <option key={item.value} value={item.value}>
+                  {item.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Reason
+            <input value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Optional timeline note" />
+          </label>
+          <button type="button" disabled={isSaving} onClick={saveStatus}>
+            Update status
+          </button>
+        </div>
+        <div className="workflow-action-card">
+          <span>Assignee</span>
+          <label>
+            Owner
+            <select value={assignedToId} onChange={(event) => setAssignedToId(event.target.value)}>
+              <option value="">Unassigned</option>
+              {supportUsers.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.displayName}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button type="button" disabled={isSaving || supportUsers.length === 0} onClick={saveAssignee}>
+            Save assignee
+          </button>
+        </div>
       </div>
     </section>
   );
@@ -731,6 +744,18 @@ function normalizeEnumValue(value: number | string): number {
   }
 
   return ticketStatuses.find((item) => item.label.replace(/\s/g, "") === value)?.value ?? 0;
+}
+
+function isHighPriority(priority: number | string): boolean {
+  return priority === 2 || priority === 3 || priority === "High" || priority === "Critical";
+}
+
+function formatQueueDate(value?: string | null): string {
+  if (!value) {
+    return "not set";
+  }
+
+  return new Intl.DateTimeFormat(undefined, { day: "2-digit", month: "short" }).format(new Date(value));
 }
 
 function readError(error: unknown, fallback: string): string {

@@ -22,6 +22,11 @@ const navItems: Array<{ key: ViewKey; label: string; description: string }> = [
   { key: "admin", label: "Admin", description: "Users, roles and policies" }
 ];
 
+const navSections: Array<{ title: string; items: typeof navItems }> = [
+  { title: "Operations", items: navItems.filter((item) => item.key !== "admin") },
+  { title: "Administration", items: navItems.filter((item) => item.key === "admin") }
+];
+
 export function App() {
   const [token, setToken] = useState<string | null>(() => getStoredToken());
   const [user, setUser] = useState<UserProfile | null>(null);
@@ -180,6 +185,11 @@ function LoginScreen({
             {isSubmitting ? "Signing in..." : "Sign in"}
           </button>
         </form>
+        <div className="demo-credentials" aria-label="Demo credentials">
+          <span>Development only</span>
+          <strong>Demo admin</strong>
+          <code>admin@supportpilot.local / Admin123!</code>
+        </div>
       </section>
     </main>
   );
@@ -211,16 +221,21 @@ function AppShell({
           </span>
         </div>
         <nav className="nav-list" aria-label="Main navigation">
-          {navItems.map((item) => (
-            <button
-              key={item.key}
-              className={item.key === activeView ? "nav-item nav-item-active" : "nav-item"}
-              onClick={() => onNavigate(item.key)}
-              type="button"
-            >
-              <span>{item.label}</span>
-              <small>{item.description}</small>
-            </button>
+          {navSections.map((section) => (
+            <section key={section.title} className="nav-section" aria-label={section.title}>
+              <span className="nav-section-title">{section.title}</span>
+              {section.items.map((item) => (
+                <button
+                  key={item.key}
+                  className={item.key === activeView ? "nav-item nav-item-active" : "nav-item"}
+                  onClick={() => onNavigate(item.key)}
+                  type="button"
+                >
+                  <span>{item.label}</span>
+                  <small>{item.description}</small>
+                </button>
+              ))}
+            </section>
           ))}
         </nav>
         <div className="sidebar-footer">

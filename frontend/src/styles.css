@@ -73,7 +73,7 @@ button {
 
 .login-page {
   display: grid;
-  grid-template-columns: minmax(0, 1.25fr) minmax(24rem, 0.75fr);
+  grid-template-columns: minmax(0, 1.15fr) minmax(28rem, 0.85fr);
   gap: clamp(1.5rem, 4vw, 4rem);
   align-items: center;
   padding: clamp(1rem, 4vw, 4rem);
@@ -94,7 +94,7 @@ button {
 .login-hero {
   position: relative;
   overflow: hidden;
-  padding: clamp(2rem, 6vw, 5rem);
+  padding: clamp(2rem, 5vw, 4.4rem);
   border-radius: 2.5rem;
 }
 
@@ -127,8 +127,8 @@ h2 {
 .login-hero h1 {
   max-width: 13ch;
   margin-top: 1rem;
-  font-size: clamp(3.1rem, 8vw, 7.4rem);
-  line-height: 0.9;
+  font-size: clamp(2.75rem, 6.5vw, 6.1rem);
+  line-height: 0.92;
 }
 
 .login-hero p {
@@ -142,7 +142,7 @@ h2 {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 1rem;
-  margin-top: 2rem;
+  margin-top: 1.6rem;
 }
 
 .metric-card {
@@ -165,7 +165,7 @@ h2 {
 }
 
 .login-panel {
-  padding: 2rem;
+  padding: 2rem 2.2rem;
   border-radius: 2rem;
 }
 
@@ -204,8 +204,8 @@ h2 {
 
 .login-form {
   display: grid;
-  gap: 1rem;
-  margin-top: 1.5rem;
+  gap: 0.9rem;
+  margin-top: 1.35rem;
 }
 
 .login-form label {
@@ -246,6 +246,35 @@ h2 {
 .login-form button:disabled {
   cursor: progress;
   opacity: 0.72;
+}
+
+.demo-credentials {
+  display: grid;
+  gap: 0.28rem;
+  margin-top: 1rem;
+  border: 1px solid rgba(40, 77, 64, 0.18);
+  border-radius: 1rem;
+  padding: 0.9rem 1rem;
+  color: var(--ink-muted);
+  background: rgba(184, 243, 212, 0.18);
+}
+
+.demo-credentials span {
+  color: var(--rust);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.demo-credentials strong {
+  color: var(--moss-deep);
+}
+
+.demo-credentials code {
+  color: var(--ink);
+  font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+  font-weight: 700;
 }
 
 .form-error {
@@ -301,18 +330,42 @@ h2 {
 
 .nav-list {
   display: grid;
-  gap: 0.75rem;
-  margin-top: 2rem;
+  gap: 1rem;
+  margin-top: 1.75rem;
+}
+
+.nav-section {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.nav-section + .nav-section {
+  border-top: 1px solid rgba(255, 250, 240, 0.12);
+  padding-top: 1rem;
+}
+
+.nav-section-title {
+  color: rgba(255, 250, 240, 0.48);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
 }
 
 .nav-item {
   width: 100%;
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 1.2rem;
-  padding: 0.9rem;
+  padding: 0.72rem 0.82rem;
   color: inherit;
   text-align: left;
   background: rgba(255, 255, 255, 0.04);
+}
+
+.nav-item small {
+  margin-top: 0.12rem;
+  font-size: 0.82rem;
+  line-height: 1.2;
 }
 
 .nav-item-active {
@@ -429,7 +482,7 @@ h2 {
 
 .dashboard-shell {
   display: grid;
-  gap: 1.2rem;
+  gap: 0.95rem;
 }
 
 .dashboard-hero,
@@ -448,7 +501,8 @@ h2 {
   gap: 1rem;
   overflow: hidden;
   position: relative;
-  padding: clamp(1.4rem, 4vw, 2.6rem);
+  min-height: clamp(10rem, 18vw, 16rem);
+  padding: clamp(1.15rem, 2.5vw, 2rem);
   border-radius: 2rem;
 }
 
@@ -465,13 +519,14 @@ h2 {
 
 .dashboard-hero h2 {
   max-width: 13ch;
-  margin-top: 0.65rem;
-  font-size: clamp(2.3rem, 6vw, 5rem);
-  line-height: 0.9;
+  margin-top: 0.45rem;
+  font-size: clamp(2rem, 4.4vw, 3.9rem);
+  line-height: 0.94;
 }
 
 .dashboard-hero p {
   max-width: 48rem;
+  margin-bottom: 0;
   color: var(--ink-muted);
 }
 
@@ -501,13 +556,13 @@ h2 {
 .dashboard-metrics {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 1rem;
+  gap: 0.85rem;
 }
 
 .dashboard-metric {
   overflow: hidden;
   position: relative;
-  padding: 1.2rem;
+  padding: 1rem;
   border-radius: 1.4rem;
 }
 
@@ -541,19 +596,19 @@ h2 {
   display: block;
   margin: 0.2rem 0;
   font-family: "Space Grotesk", sans-serif;
-  font-size: clamp(2rem, 5vw, 4rem);
+  font-size: clamp(1.85rem, 4vw, 3.2rem);
 }
 
 .dashboard-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 1rem;
+  gap: 0.85rem;
 }
 
 .dashboard-panel {
   display: grid;
-  gap: 1rem;
-  padding: 1.2rem;
+  gap: 0.85rem;
+  padding: 1rem;
   border-radius: 1.4rem;
 }
 

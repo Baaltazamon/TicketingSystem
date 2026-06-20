@@ -20,6 +20,7 @@ public static class DatabaseInitializer
         await SeedCategoriesAsync(db);
         await SeedKnowledgeBaseAsync(db);
         await SeedAdminAsync(db, scope.ServiceProvider.GetRequiredService<IOptions<JwtOptions>>().Value);
+        await SeedDemoTicketsAsync(db);
     }
 
     private static async Task SeedRolesAsync(SupportPilotDbContext db)
@@ -120,5 +121,178 @@ public static class DatabaseInitializer
 
         db.Users.Add(admin);
         await db.SaveChangesAsync();
+    }
+
+    private static async Task SeedDemoTicketsAsync(SupportPilotDbContext db)
+    {
+        if (await db.Tickets.AnyAsync(x => x.Number.StartsWith("SP-DEMO-")))
+        {
+            return;
+        }
+
+        var admin = await db.Users.OrderBy(x => x.Email).FirstOrDefaultAsync();
+        if (admin is null)
+        {
+            return;
+        }
+
+        var categories = await db.TicketCategories.ToDictionaryAsync(x => x.Name);
+        if (categories.Count == 0)
+        {
+            return;
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        var access = GetCategory(categories, "Access");
+        var billing = GetCategory(categories, "Billing");
+        var bug = GetCategory(categories, "Bug");
+        var question = GetCategory(categories, "Question");
+
+        var tickets = new[]
+        {
+            CreateDemoTicket(
+                "SP-DEMO-0001",
+                "Checkout API outage for enterprise tenant",
+                "Payment callbacks are failing for the largest tenant and require immediate investigation.",
+                TicketStatus.InProgress,
+                TicketPriority.Critical,
+                bug,
+                admin,
+                admin.Id,
+                now.AddHours(-5),
+                now.AddMinutes(-8),
+                now.AddHours(-4),
+                now.AddHours(-1),
+                true,
+                true),
+            CreateDemoTicket(
+                "SP-DEMO-0002",
+                "SSO login fails after certificate rotation",
+                "Users from the finance workspace cannot complete SSO after the IdP certificate update.",
+                TicketStatus.InProgress,
+                TicketPriority.High,
+                access,
+                admin,
+                admin.Id,
+                now.AddHours(-3),
+                now.AddMinutes(-35),
+                now.AddMinutes(35),
+                now.AddHours(20),
+                false,
+                false),
+            CreateDemoTicket(
+                "SP-DEMO-0003",
+                "New teammate needs workspace access",
+                "A new support coordinator needs access to the billing and reporting areas.",
+                TicketStatus.New,
+                TicketPriority.Normal,
+                access,
+                admin,
+                null,
+                now.AddHours(-2),
+                now.AddHours(-1),
+                now.AddHours(22),
+                now.AddDays(3),
+                false,
+                false),
+            CreateDemoTicket(
+                "SP-DEMO-0004",
+                "Question about invoice export format",
+                "Customer needs CSV columns documented before the monthly finance export.",
+                TicketStatus.WaitingForCustomer,
+                TicketPriority.Normal,
+                billing,
+                admin,
+                admin.Id,
+                now.AddHours(-8),
+                now.AddHours(-4),
+                now.AddHours(12),
+                now.AddDays(2),
+                false,
+                false,
+                now.AddHours(-6)),
+            CreateDemoTicket(
+                "SP-DEMO-0005",
+                "Clarify attachment size limit",
+                "Support needs the latest upload limit confirmed for a customer sending diagnostic bundles.",
+                TicketStatus.InProgress,
+                TicketPriority.Low,
+                question,
+                admin,
+                admin.Id,
+                now.AddDays(-1),
+                now.AddMinutes(-12),
+                now.AddDays(1),
+                now.AddDays(6),
+                false,
+                false,
+                now.AddHours(-2))
+        };
+
+        db.Tickets.AddRange(tickets);
+        await db.SaveChangesAsync();
+    }
+
+    private static TicketCategory GetCategory(IReadOnlyDictionary<string, TicketCategory> categories, string name) =>
+        categories.TryGetValue(name, out var category) ? category : categories.Values.First();
+
+    private static Ticket CreateDemoTicket(
+        string number,
+        string title,
+        string description,
+        TicketStatus status,
+        TicketPriority priority,
+        TicketCategory category,
+        User createdBy,
+        Guid? assignedToId,
+        DateTimeOffset createdAt,
+        DateTimeOffset updatedAt,
+        DateTimeOffset firstResponseDueAt,
+        DateTimeOffset resolutionDueAt,
+        bool firstResponseBreached,
+        bool resolutionBreached,
+        DateTimeOffset? firstResponseAt = null)
+    {
+        var ticket = new Ticket
+        {
+            Number = number,
+            Title = title,
+            Description = description,
+            Status = status,
+            Priority = priority,
+            CategoryId = category.Id,
+            CreatedById = createdBy.Id,
+            AssignedToId = assignedToId,
+            CreatedAt = createdAt,
+            UpdatedAt = updatedAt,
+            FirstResponseDueAt = firstResponseDueAt,
+            ResolutionDueAt = resolutionDueAt,
+            FirstResponseAt = firstResponseAt,
+            FirstResponseBreached = firstResponseBreached,
+            ResolutionBreached = resolutionBreached
+        };
+
+        ticket.StatusHistory.Add(new TicketStatusHistory
+        {
+            FromStatus = null,
+            ToStatus = TicketStatus.New,
+            ChangedById = createdBy.Id,
+            Reason = "Demo seed ticket created.",
+            CreatedAt = createdAt
+        });
+
+        if (status != TicketStatus.New)
+        {
+            ticket.StatusHistory.Add(new TicketStatusHistory
+            {
+                FromStatus = TicketStatus.New,
+                ToStatus = status,
+                ChangedById = createdBy.Id,
+                Reason = "Demo seed workflow movement.",
+                CreatedAt = updatedAt
+            });
+        }
+
+        return ticket;
     }
 }

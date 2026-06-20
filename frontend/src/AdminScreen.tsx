@@ -202,13 +202,13 @@ export function AdminScreen({ token, user }: { token: string; user: UserProfile 
     <section className="admin-shell">
       {error ? <div className="notice notice-error">{error}</div> : null}
 
-      <header className="admin-hero">
+      <header className="product-header">
         <div>
           <span className="eyebrow">Administration</span>
           <h2>Control users, routing and SLA contracts.</h2>
           <p>Manage operational access, ticket categories and policy thresholds from one protected surface.</p>
         </div>
-        <button type="button" onClick={loadAdminData} disabled={isLoading}>
+        <button className="button-ghost button-small" type="button" onClick={loadAdminData} disabled={isLoading}>
           Refresh
         </button>
       </header>
@@ -265,7 +265,7 @@ export function AdminScreen({ token, user }: { token: string; user: UserProfile 
                 />
                 Active account
               </label>
-              <button type="submit" disabled={isSaving || !selectedUserId}>
+              <button className="button-primary button-small" type="submit" disabled={isSaving || !selectedUserId}>
                 Save user
               </button>
             </form>
@@ -300,7 +300,7 @@ export function AdminScreen({ token, user }: { token: string; user: UserProfile 
               />
               Available for new tickets
             </label>
-            <button type="submit" disabled={isSaving}>
+            <button className="button-primary button-small" type="submit" disabled={isSaving}>
               {editingCategoryId ? "Update category" : "Create category"}
             </button>
           </form>
@@ -375,7 +375,7 @@ export function AdminScreen({ token, user }: { token: string; user: UserProfile 
               />
               Active policy
             </label>
-            <button type="submit" disabled={isSaving || !editingSlaId}>
+            <button className="button-primary button-small" type="submit" disabled={isSaving || !editingSlaId}>
               Save SLA policy
             </button>
           </form>

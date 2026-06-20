@@ -1135,7 +1135,7 @@ h2 {
 
 .tickets-workspace {
   display: grid;
-  grid-template-columns: minmax(28rem, 0.95fr) minmax(0, 1.45fr);
+  grid-template-columns: minmax(24rem, 0.9fr) minmax(0, 1.5fr);
   align-items: start;
   gap: 0.85rem;
 }
@@ -1150,6 +1150,7 @@ h2 {
   display: grid;
   align-content: start;
   gap: 0.68rem;
+  min-width: 0;
 }
 
 .tickets-toolbar,
@@ -1177,6 +1178,7 @@ h2 {
   align-items: start;
   justify-content: space-between;
   gap: 1rem;
+  min-width: 0;
 }
 
 .tickets-list-header h2 {
@@ -1193,9 +1195,10 @@ h2 {
 
 .tickets-toolbar {
   display: grid;
-  grid-template-columns: minmax(10rem, 1.25fr) repeat(3, minmax(6.4rem, 0.75fr)) minmax(12rem, 0.9fr) auto;
+  grid-template-columns: minmax(9rem, 1.25fr) repeat(3, minmax(5.6rem, 0.75fr)) auto;
   gap: 0.5rem;
   align-items: end;
+  min-width: 0;
 }
 
 .tickets-toolbar label,
@@ -1232,6 +1235,7 @@ h2 {
 
 .filter-flags {
   display: flex;
+  grid-column: 1 / -2;
   flex-wrap: wrap;
   gap: 0.5rem;
   font-size: 0.82rem;
@@ -1260,6 +1264,7 @@ h2 {
 
 .tickets-toolbar button {
   grid-column: auto;
+  justify-self: end;
   white-space: nowrap;
 }
 
@@ -1437,11 +1442,17 @@ button:disabled {
   align-items: flex-start;
   justify-content: space-between;
   gap: 1rem;
+  min-width: 0;
+}
+
+.detail-header > div {
+  min-width: 0;
 }
 
 .detail-header h2 {
   margin-top: 0.35rem;
   font-size: clamp(1.65rem, 3vw, 2.6rem);
+  overflow-wrap: anywhere;
 }
 
 .detail-header p {
@@ -1455,6 +1466,7 @@ button:disabled {
 }
 
 .fact {
+  min-width: 0;
   border: 1px solid var(--line);
   border-radius: 1rem;
   padding: 0.68rem;
@@ -1464,6 +1476,8 @@ button:disabled {
 .fact span,
 .fact strong {
   display: block;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .workflow-panel h3,

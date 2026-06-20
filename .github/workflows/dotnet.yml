@@ -22,6 +22,21 @@ jobs:
         with:
           dotnet-version: 8.0.x
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Restore frontend dependencies
+        run: npm ci
+        working-directory: frontend
+
+      - name: Build frontend
+        run: npm run build
+        working-directory: frontend
+
       - name: Restore
         run: dotnet restore SupportPilot.sln
 
@@ -48,3 +63,30 @@ jobs:
         with:
           name: supportpilot-notifications-worker
           path: artifacts/notifications-worker
+
+  docker-compose-smoke:
+    runs-on: ubuntu-latest
+    needs: build-test-publish
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Build and start Docker Compose stack
+        run: docker compose up --build -d
+
+      - name: Run Docker Compose smoke test
+        run: node scripts/docker-smoke.mjs
+
+      - name: Dump Docker Compose logs
+        if: failure()
+        run: docker compose logs --no-color
+
+      - name: Stop Docker Compose stack
+        if: always()
+        run: docker compose down -v

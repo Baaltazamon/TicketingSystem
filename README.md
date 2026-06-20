@@ -21,7 +21,39 @@ SupportPilot is an MVP support ticketing system built with ASP.NET Core Web API.
 - SQLite for local development, PostgreSQL for Docker and production-like runs.
 - Memory cache locally and Redis cache in the Docker profile.
 
+## UI Preview
+
+Login:
+
+![SupportPilot login](docs/screenshots/login.png)
+
+Command center:
+
+![SupportPilot command center](docs/screenshots/command-center.png)
+
+Ticket workspace:
+
+![SupportPilot ticket workspace](docs/screenshots/tickets.png)
+
+Knowledge base and admin:
+
+![SupportPilot knowledge base](docs/screenshots/knowledge-base.png)
+
+![SupportPilot admin](docs/screenshots/admin.png)
+
 ## Quick Start
+
+Full-stack Docker mode starts the frontend, API, worker and infrastructure:
+
+```powershell
+docker compose up --build
+```
+
+Open the product UI at:
+
+```text
+http://localhost:5173
+```
 
 Local mode uses SQLite, local file storage and in-memory cache:
 
@@ -35,12 +67,16 @@ Swagger is available at:
 http://localhost:5295/swagger
 ```
 
-The default administrator is created automatically during the first startup:
+## Demo Credentials
+
+The default administrator is created automatically during development and demo startup:
 
 ```text
 email: admin@supportpilot.local
 password: Admin123!
 ```
+
+These credentials are for local/demo seed data only. Do not use them outside local development or public portfolio demos. Override `Jwt:SeedAdminEmail` and `Jwt:SeedAdminPassword`, or the Compose variables `SUPPORTPILOT_ADMIN_EMAIL` and `SUPPORTPILOT_ADMIN_PASSWORD`, for any real deployment.
 
 ## Infrastructure Profile
 
@@ -141,6 +177,12 @@ Get-ChildItem artifacts/api -Filter *.xml
 
 The React frontend lives in `frontend/`.
 
+Docker Compose serves the production build through nginx at:
+
+```text
+http://localhost:5173
+```
+
 Local development:
 
 ```powershell
@@ -179,6 +221,7 @@ Cache__Provider=Redis
 
 Services:
 
+- Frontend: `http://localhost:5173`
 - API: `http://localhost:8080`
 - Notifications worker: standalone container without an HTTP port.
 - PostgreSQL: `localhost:5432`
@@ -191,6 +234,14 @@ Health checks:
 - `GET /api/health`: all checks.
 - `GET /api/health/ready`: database, Redis, RabbitMQ and object storage readiness.
 - `GET /api/health/live`: liveness without external dependencies.
+
+Run the same smoke path used by CI:
+
+```powershell
+node scripts/docker-smoke.mjs
+```
+
+The smoke script waits for readiness, logs in, creates a ticket, assigns it, adds a comment, uploads/downloads/deletes an attachment, changes status and verifies that the RabbitMQ notification worker persisted a notification.
 
 ## EF Core
 
@@ -209,6 +260,21 @@ dotnet ef migrations add MigrationName --project src/SupportPilot.Infrastructure
 On startup, the API calls `Database.MigrateAsync()` and then seeds baseline roles, SLA policies, ticket categories, FAQ content and the default admin user.
 
 ## Architecture
+
+```mermaid
+flowchart LR
+  Browser[React UI] -->|/api and /hubs| Frontend[Nginx frontend]
+  Frontend --> Api[ASP.NET Core API]
+  Api --> App[Application use cases]
+  App --> Domain[Domain]
+  Api --> Infra[Infrastructure adapters]
+  Infra --> Postgres[(PostgreSQL)]
+  Infra --> Redis[(Redis)]
+  Infra --> MinIO[(MinIO)]
+  Infra --> RabbitMQ[(RabbitMQ)]
+  Worker[Notifications Worker] --> RabbitMQ
+  Worker --> Postgres
+```
 
 ```text
 src/
@@ -259,6 +325,39 @@ In local mode, the API stores notifications directly through `Notifications:Tran
 
 Storage-optimized notification inbox and audit-log queries are exposed to Application through `INotificationInboxStore` and `IAuditLogReader`, with EF Core implementations in Infrastructure.
 
+Notification flow:
+
+```mermaid
+sequenceDiagram
+  participant UI as React UI
+  participant API as SupportPilot API
+  participant MQ as RabbitMQ
+  participant Worker as Notifications Worker
+  participant DB as PostgreSQL
+
+  UI->>API: Comment, assign or status change
+  API->>DB: Persist ticket change and audit event
+  API->>MQ: Publish NotificationMessage
+  Worker->>MQ: Consume message
+  Worker->>DB: Store notification inbox row
+  UI->>API: GET /api/notifications
+  API->>DB: Read recent personal and global notifications
+```
+
+Docker topology:
+
+```mermaid
+flowchart TB
+  Frontend[frontend: nginx + Vite build] --> Api[api: ASP.NET Core]
+  Api --> Postgres[(postgres:16)]
+  Api --> Redis[(redis:7)]
+  Api --> MinIO[(minio)]
+  Api --> RabbitMQ[(rabbitmq:3-management)]
+  Worker[notifications-worker] --> RabbitMQ
+  Worker --> Postgres
+  Worker --> MinIO
+```
+
 ## Main Endpoint Groups
 
 - `POST /api/auth/register`
@@ -304,13 +403,41 @@ Storage-optimized notification inbox and audit-log queries are exposed to Applic
 dotnet build SupportPilot.sln
 dotnet test SupportPilot.sln
 npm --prefix frontend run build
+docker compose up --build -d
+node scripts/docker-smoke.mjs
+docker compose down -v
 dotnet publish src/SupportPilot.Api/SupportPilot.Api.csproj -c Release -o artifacts/api
 dotnet publish src/SupportPilot.Notifications.Worker/SupportPilot.Notifications.Worker.csproj -c Release -o artifacts/notifications-worker
 ```
 
+CI test matrix:
+
+| Area | Command |
+| --- | --- |
+| Backend compile | `dotnet build SupportPilot.sln --configuration Release --no-restore` |
+| Backend tests | `dotnet test SupportPilot.sln --configuration Release --no-build` |
+| Frontend build | `npm ci` and `npm run build` in `frontend/` |
+| Publish artifacts | API and notifications worker publish output uploaded from GitHub Actions |
+| Docker smoke | `docker compose up --build -d` plus `node scripts/docker-smoke.mjs` |
+
+## Release History
+
+Detailed notes are maintained in [CHANGELOG.md](CHANGELOG.md).
+
+- `v0.1` Backend MVP: auth, roles, tickets, comments, attachments and SLA basics.
+- `v0.2` Infrastructure hardening: EF migrations, PostgreSQL, MinIO, health checks and Docker profile.
+- `v0.3` Notification worker: RabbitMQ transport and standalone worker host.
+- `v0.4` Frontend shell: React login, protected layout and live readiness.
+- `v0.5` Ticket workspace: filters, ticket details, comments, attachments and workflow controls.
+- `v0.6` Knowledge base and admin: FAQ browse/manage mode, users, categories and SLA policies.
+- `v0.7` API documentation and frontend density: XML/OpenAPI docs, UI density pass and component variants.
+- `v0.8` Compose CI smoke: full-stack frontend/API/worker/infrastructure validation in CI.
+
 ## Next Technical Steps
 
-- Add Docker Compose smoke automation for health, login, ticket creation and attachment upload/download.
+- Add Playwright frontend e2e for login, ticket creation and ticket details.
+- Capture and commit UI screenshots/GIF assets for the GitHub showcase.
+- Add structured logging with request id, trace id and worker message id.
 - Move remaining high-volume dashboard and ticket read paths behind query-specific Application ports if database load grows.
 - Add release notes for the next backend hardening milestone.
 

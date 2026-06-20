@@ -1,4 +1,14 @@
 services:
+  frontend:
+    build:
+      context: frontend
+      dockerfile: Dockerfile
+    ports:
+      - "5173:80"
+    depends_on:
+      api:
+        condition: service_started
+
   api:
     build:
       context: .
@@ -23,6 +33,8 @@ services:
       Notifications__Transport: RabbitMQ
       Notifications__QueueName: ${NOTIFICATIONS_QUEUE:-supportpilot.notifications}
       Jwt__SigningKey: ${JWT_SIGNING_KEY:-DOCKER_SUPPORTPILOT_SECRET_32_CHARS_MINIMUM}
+      Jwt__SeedAdminEmail: ${SUPPORTPILOT_ADMIN_EMAIL:-admin@supportpilot.local}
+      Jwt__SeedAdminPassword: ${SUPPORTPILOT_ADMIN_PASSWORD:-Admin123!}
     ports:
       - "8080:8080"
     depends_on:
@@ -53,6 +65,8 @@ services:
       FileStorage__BucketName: ${MINIO_BUCKET:-supportpilot-attachments}
       FileStorage__UseSsl: false
       Jwt__SigningKey: ${JWT_SIGNING_KEY:-DOCKER_SUPPORTPILOT_SECRET_32_CHARS_MINIMUM}
+      Jwt__SeedAdminEmail: ${SUPPORTPILOT_ADMIN_EMAIL:-admin@supportpilot.local}
+      Jwt__SeedAdminPassword: ${SUPPORTPILOT_ADMIN_PASSWORD:-Admin123!}
     depends_on:
       postgres:
         condition: service_healthy

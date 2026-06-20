@@ -203,11 +203,11 @@ export function KnowledgeBaseScreen({ token, user }: { token: string; user: User
     <section className="kb-shell">
       {error ? <div className="notice notice-error">{error}</div> : null}
 
-      <header className="kb-hero">
+      <header className="product-header product-header-with-stat">
         <div>
           <span className="eyebrow">Self-service support</span>
-          <h2>Answers that reduce queue pressure.</h2>
-          <p>Search published FAQ articles or maintain drafts from the support-staff admin panel.</p>
+          <h2>Find and manage support answers.</h2>
+          <p>Browse published FAQ articles or switch to staff publishing tools without leaving the workspace.</p>
         </div>
         <div className="kb-stats">
           <strong>{articles.length}</strong>
@@ -266,7 +266,7 @@ export function KnowledgeBaseScreen({ token, user }: { token: string; user: User
                   ))}
                 </select>
               </label>
-              <button type="submit">Search FAQ</button>
+              <button className="button-secondary button-small" type="submit">Search FAQ</button>
             </form>
 
             <div className="kb-category-list">
@@ -302,7 +302,7 @@ export function KnowledgeBaseScreen({ token, user }: { token: string; user: User
               <span className="eyebrow">Support-staff admin</span>
               <h2>Knowledge base publishing desk</h2>
             </div>
-            <button type="button" onClick={newArticle}>
+            <button className="button-primary button-small" type="button" onClick={newArticle}>
               New article
             </button>
           </header>
@@ -328,7 +328,7 @@ export function KnowledgeBaseScreen({ token, user }: { token: string; user: User
                     }
                   />
                 </label>
-                <button type="submit" disabled={isSaving}>
+                <button className="button-primary button-small" type="submit" disabled={isSaving}>
                   {editingCategoryId ? "Update category" : "Create category"}
                 </button>
               </form>
@@ -364,7 +364,7 @@ export function KnowledgeBaseScreen({ token, user }: { token: string; user: User
                   <option value="true">Published</option>
                   <option value="false">Drafts</option>
                 </select>
-                <button type="submit">Apply</button>
+                <button className="button-secondary button-small" type="submit">Apply</button>
               </form>
               <div className="kb-admin-list">
                 {adminArticles.map((article) => (
@@ -436,7 +436,7 @@ export function KnowledgeBaseScreen({ token, user }: { token: string; user: User
                   />
                   Publish article
                 </label>
-                <button type="submit" disabled={isSaving || !articleInput.categoryId}>
+                <button className="button-primary button-small" type="submit" disabled={isSaving || !articleInput.categoryId}>
                   {isSaving ? "Saving..." : "Save article"}
                 </button>
               </form>

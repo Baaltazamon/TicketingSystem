@@ -111,51 +111,61 @@ export function TicketsScreen({ token, user }: { token: string; user: UserProfil
   }
 
   return (
-    <section className="tickets-workspace">
-      <div className="tickets-left">
-        <section className="tickets-list-shell">
-          <header className="tickets-list-header">
-            <div>
-              <span className="eyebrow">Ticket queue</span>
-              <h2>Case work</h2>
-            </div>
-            <CreateTicketPanel
-              categories={categories}
-              token={token}
-              canCreate={categories.length > 0}
-              onCreated={(ticketId) => {
-                setSelectedTicketId(ticketId);
-                loadTickets(query);
-              }}
-            />
-          </header>
-          <TicketsToolbar
-            categories={categories}
-            query={query}
-            canUseSupportFilters={canUseSupportActions}
-            onChange={(nextQuery) => setQuery(nextQuery)}
-            onApply={(nextQuery) => loadTickets(nextQuery)}
-          />
-          <TicketList
-            isLoading={isLoadingList}
-            selectedTicketId={selectedTicketId}
-            tickets={tickets}
-            onSelect={setSelectedTicketId}
-          />
-        </section>
-      </div>
+    <section className="tickets-shell">
+      <header className="product-header">
+        <div>
+          <span className="eyebrow">Operations queue</span>
+          <h2>Manage customer requests, SLA and ticket workflow.</h2>
+        </div>
+        <p>Compact case work for support agents: filter the queue, inspect the selected ticket and move it forward.</p>
+      </header>
 
-      <div className="tickets-right">
-        {error ? <div className="notice notice-error">{error}</div> : null}
-        <TicketDetailsPanel
-          canUseSupportActions={canUseSupportActions}
-          isLoading={isLoadingDetails}
-          ticket={selectedTicket}
-          token={token}
-          users={users}
-          onChanged={refreshCurrentTicket}
-        />
-      </div>
+      <section className="tickets-workspace">
+        <div className="tickets-left">
+          <section className="tickets-list-shell">
+            <header className="tickets-list-header">
+              <div>
+                <span className="eyebrow">Ticket queue</span>
+                <h2>Case work</h2>
+              </div>
+              <CreateTicketPanel
+                categories={categories}
+                token={token}
+                canCreate={categories.length > 0}
+                onCreated={(ticketId) => {
+                  setSelectedTicketId(ticketId);
+                  loadTickets(query);
+                }}
+              />
+            </header>
+            <TicketsToolbar
+              categories={categories}
+              query={query}
+              canUseSupportFilters={canUseSupportActions}
+              onChange={(nextQuery) => setQuery(nextQuery)}
+              onApply={(nextQuery) => loadTickets(nextQuery)}
+            />
+            <TicketList
+              isLoading={isLoadingList}
+              selectedTicketId={selectedTicketId}
+              tickets={tickets}
+              onSelect={setSelectedTicketId}
+            />
+          </section>
+        </div>
+
+        <div className="tickets-right">
+          {error ? <div className="notice notice-error">{error}</div> : null}
+          <TicketDetailsPanel
+            canUseSupportActions={canUseSupportActions}
+            isLoading={isLoadingDetails}
+            ticket={selectedTicket}
+            token={token}
+            users={users}
+            onChanged={refreshCurrentTicket}
+          />
+        </div>
+      </section>
     </section>
   );
 }
@@ -264,7 +274,7 @@ function TicketsToolbar({
           </label>
         </div>
       ) : null}
-      <button type="submit">Apply filters</button>
+      <button className="button-secondary button-small" type="submit">Apply filters</button>
     </form>
   );
 }
@@ -315,7 +325,7 @@ function CreateTicketPanel({
 
   return (
     <section className="create-ticket-panel">
-      <button className="secondary-action" type="button" onClick={() => setIsOpen((value) => !value)}>
+      <button className="button-primary button-small" type="button" onClick={() => setIsOpen((value) => !value)}>
         {isOpen ? "Close" : "+ Create ticket"}
       </button>
       {!canCreate ? (
@@ -367,7 +377,7 @@ function CreateTicketPanel({
             </select>
           </label>
           {error ? <p className="form-error">{error}</p> : null}
-          <button type="submit" disabled={!canCreate || isSubmitting}>
+          <button className="button-primary" type="submit" disabled={!canCreate || isSubmitting}>
             {isSubmitting ? "Creating..." : "Submit ticket"}
           </button>
         </form>
@@ -546,7 +556,7 @@ function WorkflowPanel({
             Reason
             <input value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Optional timeline note" />
           </label>
-          <button type="button" disabled={isSaving} onClick={saveStatus}>
+          <button className="button-secondary button-small" type="button" disabled={isSaving} onClick={saveStatus}>
             Update status
           </button>
         </div>
@@ -563,7 +573,7 @@ function WorkflowPanel({
               ))}
             </select>
           </label>
-          <button type="button" disabled={isSaving || supportUsers.length === 0} onClick={saveAssignee}>
+          <button className="button-secondary button-small" type="button" disabled={isSaving || supportUsers.length === 0} onClick={saveAssignee}>
             Save assignee
           </button>
         </div>
@@ -616,7 +626,7 @@ function CommentPanel({
               Internal note
             </label>
           ) : null}
-          <button type="submit" disabled={isSubmitting}>
+          <button className="button-secondary button-small" type="submit" disabled={isSubmitting}>
             {isSubmitting ? "Posting..." : "Add comment"}
           </button>
         </div>
@@ -689,10 +699,10 @@ function AttachmentPanel({
               <small>{formatBytes(attachment.sizeBytes)} / {attachment.uploadedBy.displayName}</small>
             </div>
             <div className="attachment-actions">
-              <button type="button" onClick={() => window.open(attachment.downloadUrl, "_blank", "noopener")}>
+              <button className="button-ghost button-small" type="button" onClick={() => window.open(attachment.downloadUrl, "_blank", "noopener")}>
                 Download
               </button>
-              <button type="button" onClick={() => remove(attachment.id)}>
+              <button className="button-danger button-small" type="button" onClick={() => remove(attachment.id)}>
                 Delete
               </button>
             </div>

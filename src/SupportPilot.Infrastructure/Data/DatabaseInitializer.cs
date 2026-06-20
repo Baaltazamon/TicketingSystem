@@ -76,12 +76,14 @@ public static class DatabaseInitializer
         }
 
         await db.SaveChangesAsync();
+        await NormalizeCategoryDescriptionsAsync(db);
     }
 
     private static async Task SeedKnowledgeBaseAsync(SupportPilotDbContext db)
     {
         if (await db.KnowledgeBaseCategories.AnyAsync())
         {
+            await NormalizeKnowledgeBaseSeedAsync(db);
             return;
         }
 
@@ -99,6 +101,48 @@ public static class DatabaseInitializer
         });
 
         db.KnowledgeBaseCategories.Add(category);
+        await db.SaveChangesAsync();
+        await NormalizeKnowledgeBaseSeedAsync(db);
+    }
+
+    private static async Task NormalizeCategoryDescriptionsAsync(SupportPilotDbContext db)
+    {
+        var descriptions = new Dictionary<string, string>
+        {
+            ["Access"] = "Accounts, permissions, roles and workspace access",
+            ["Billing"] = "Invoices, payments, exports and subscription questions",
+            ["Bug"] = "Product defects, instability and unexpected behavior",
+            ["Question"] = "General product questions and how-to requests"
+        };
+
+        var categories = await db.TicketCategories
+            .Where(x => descriptions.Keys.Contains(x.Name))
+            .ToListAsync();
+
+        foreach (var category in categories)
+        {
+            category.Description = descriptions[category.Name];
+        }
+
+        await db.SaveChangesAsync();
+    }
+
+    private static async Task NormalizeKnowledgeBaseSeedAsync(SupportPilotDbContext db)
+    {
+        var category = await db.KnowledgeBaseCategories.FirstOrDefaultAsync(x => x.Name == "FAQ");
+        if (category is not null)
+        {
+            category.Description = "Frequently asked customer support questions";
+        }
+
+        var article = await db.KnowledgeBaseArticles.FirstOrDefaultAsync(x => x.Slug == "how-to-create-ticket");
+        if (article is not null)
+        {
+            article.Title = "How to create a support ticket";
+            article.Body = "Open the Tickets section, choose the most relevant category, describe the issue clearly, and attach any diagnostic files that help support reproduce the problem.";
+            article.IsPublished = true;
+        }
+
         await db.SaveChangesAsync();
     }
 

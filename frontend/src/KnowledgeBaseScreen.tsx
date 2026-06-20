@@ -32,6 +32,7 @@ const emptyArticleInput: UpsertKnowledgeBaseArticleInput = {
 
 export function KnowledgeBaseScreen({ token, user }: { token: string; user: UserProfile }) {
   const canManage = user.roles.some((role) => role === "Admin" || role === "Agent");
+  const [mode, setMode] = useState<"browse" | "manage">("browse");
   const [categories, setCategories] = useState<KnowledgeBaseCategory[]>([]);
   const [articles, setArticles] = useState<KnowledgeBaseArticleListItem[]>([]);
   const [selectedArticle, setSelectedArticle] = useState<KnowledgeBaseArticle | null>(null);
@@ -214,66 +215,87 @@ export function KnowledgeBaseScreen({ token, user }: { token: string; user: User
         </div>
       </header>
 
-      <section className="kb-layout">
-        <aside className="kb-sidebar">
-          <form
-            className="kb-search"
-            onSubmit={(event) => {
-              event.preventDefault();
-              loadPublic(publicQuery);
-            }}
+      <div className="kb-mode-switch" role="tablist" aria-label="Knowledge base mode">
+        <button
+          className={mode === "browse" ? "kb-mode-active" : ""}
+          type="button"
+          onClick={() => setMode("browse")}
+        >
+          Browse
+        </button>
+        {canManage ? (
+          <button
+            className={mode === "manage" ? "kb-mode-active" : ""}
+            type="button"
+            onClick={() => setMode("manage")}
           >
-            <label>
-              Search articles
-              <input
-                placeholder="Password reset, SLA, attachments..."
-                value={publicQuery.search ?? ""}
-                onChange={(event) => patchPublicQuery({ search: event.target.value })}
-              />
-            </label>
-            <label>
-              Category
-              <select
-                value={publicQuery.categoryId ?? ""}
-                onChange={(event) => patchPublicQuery({ categoryId: event.target.value })}
-              >
-                <option value="">All categories</option>
-                {categories.map((category) => (
-                  <option key={category.id} value={category.id}>
-                    {category.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <button type="submit">Search FAQ</button>
-          </form>
+            Manage
+          </button>
+        ) : null}
+      </div>
 
-          <div className="kb-category-list">
-            {categories.map((category) => (
-              <button
-                key={category.id}
-                type="button"
-                onClick={() => loadPublic(patchPublicQuery({ categoryId: category.id }))}
-              >
-                <span>{category.name}</span>
-                <small>{category.articleCount} published</small>
-              </button>
-            ))}
-          </div>
-        </aside>
+      {mode === "browse" ? (
+        <section className="kb-layout">
+          <aside className="kb-sidebar">
+            <form
+              className="kb-search"
+              onSubmit={(event) => {
+                event.preventDefault();
+                loadPublic(publicQuery);
+              }}
+            >
+              <label>
+                Search articles
+                <input
+                  placeholder="Password reset, SLA, attachments..."
+                  value={publicQuery.search ?? ""}
+                  onChange={(event) => patchPublicQuery({ search: event.target.value })}
+                />
+              </label>
+              <label>
+                Category
+                <select
+                  value={publicQuery.categoryId ?? ""}
+                  onChange={(event) => patchPublicQuery({ categoryId: event.target.value })}
+                >
+                  <option value="">All categories</option>
+                  {categories.map((category) => (
+                    <option key={category.id} value={category.id}>
+                      {category.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <button type="submit">Search FAQ</button>
+            </form>
 
-        <main className="kb-content">
-          <ArticleList
-            articles={articles}
-            isLoading={isLoading}
-            selectedSlug={selectedArticle?.slug ?? null}
-            onSelect={selectPublicArticle}
-          />
-          <ArticleReader article={selectedArticle} />
-        </main>
-      </section>
+            <div className="kb-category-list">
+              {categories.map((category) => (
+                <button
+                  key={category.id}
+                  type="button"
+                  onClick={() => loadPublic(patchPublicQuery({ categoryId: category.id }))}
+                >
+                  <span>{category.name}</span>
+                  <small>{category.articleCount} published</small>
+                </button>
+              ))}
+            </div>
+          </aside>
 
-      {canManage ? (
+          <main className="kb-content">
+            <ArticleList
+              articles={articles}
+              isLoading={isLoading}
+              selectedSlug={selectedArticle?.slug ?? null}
+              onSelect={selectPublicArticle}
+            />
+            <ArticleReader article={selectedArticle} />
+          </main>
+        </section>
+      ) : null}
+
+      {mode === "manage" && canManage ? (
         <section className="kb-admin">
           <header>
             <div>

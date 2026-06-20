@@ -47,6 +47,9 @@ export function AdminScreen({ token, user }: { token: string; user: UserProfile 
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const activeUsers = users.filter((item) => item.isActive).length;
+  const activeCategories = categories.filter((item) => item.isActive).length;
+  const activeSlaPolicies = slaPolicies.filter((item) => item.isActive).length;
 
   useEffect(() => {
     if (!canAdmin) {
@@ -210,55 +213,63 @@ export function AdminScreen({ token, user }: { token: string; user: UserProfile 
         </button>
       </header>
 
+      <section className="admin-summary" aria-label="Administration summary">
+        <SummaryCard label="Users" value={users.length} detail={`${activeUsers} active`} />
+        <SummaryCard label="Categories" value={categories.length} detail={`${activeCategories} active`} />
+        <SummaryCard label="SLA policies" value={slaPolicies.length} detail={`${activeSlaPolicies} active`} />
+      </section>
+
       <div className="admin-grid">
         <section className="admin-panel admin-users-panel">
           <h3>Users and roles</h3>
-          <div className="admin-list">
-            {users.map((item) => (
-              <button
-                key={item.id}
-                className={item.id === selectedUserId ? "admin-row admin-row-active" : "admin-row"}
-                type="button"
-                onClick={() => editUser(item)}
-              >
-                <span>
-                  <strong>{item.displayName}</strong>
-                  <small>{item.email}</small>
-                </span>
-                <em>{item.isActive ? "Active" : "Disabled"}</em>
-              </button>
-            ))}
-          </div>
-
-          <form className="admin-form" onSubmit={saveUser}>
-            <label>
-              Display name
-              <input
-                value={userInput.displayName}
-                onChange={(event) => setUserInput((current) => ({ ...current, displayName: event.target.value }))}
-                required
-              />
-            </label>
-            <div className="admin-role-grid">
-              {roles.map((role) => (
-                <label key={role} className="admin-check">
-                  <input checked={userInput.roles.includes(role)} type="checkbox" onChange={() => toggleRole(role)} />
-                  {role}
-                </label>
+          <div className="admin-user-workspace">
+            <div className="admin-list admin-user-list">
+              {users.map((item) => (
+                <button
+                  key={item.id}
+                  className={item.id === selectedUserId ? "admin-row admin-row-active" : "admin-row"}
+                  type="button"
+                  onClick={() => editUser(item)}
+                >
+                  <span>
+                    <strong>{item.displayName}</strong>
+                    <small>{item.email}</small>
+                  </span>
+                  <em>{item.isActive ? "Active" : "Disabled"}</em>
+                </button>
               ))}
             </div>
-            <label className="admin-check">
-              <input
-                checked={userInput.isActive}
-                type="checkbox"
-                onChange={(event) => setUserInput((current) => ({ ...current, isActive: event.target.checked }))}
-              />
-              Active account
-            </label>
-            <button type="submit" disabled={isSaving || !selectedUserId}>
-              Save user
-            </button>
-          </form>
+
+            <form className="admin-form admin-user-editor" onSubmit={saveUser}>
+              <label>
+                Display name
+                <input
+                  value={userInput.displayName}
+                  onChange={(event) => setUserInput((current) => ({ ...current, displayName: event.target.value }))}
+                  required
+                />
+              </label>
+              <div className="admin-role-grid">
+                {roles.map((role) => (
+                  <label key={role} className="admin-check">
+                    <input checked={userInput.roles.includes(role)} type="checkbox" onChange={() => toggleRole(role)} />
+                    {role}
+                  </label>
+                ))}
+              </div>
+              <label className="admin-check">
+                <input
+                  checked={userInput.isActive}
+                  type="checkbox"
+                  onChange={(event) => setUserInput((current) => ({ ...current, isActive: event.target.checked }))}
+                />
+                Active account
+              </label>
+              <button type="submit" disabled={isSaving || !selectedUserId}>
+                Save user
+              </button>
+            </form>
+          </div>
         </section>
 
         <section className="admin-panel">
@@ -372,9 +383,9 @@ export function AdminScreen({ token, user }: { token: string; user: UserProfile 
             {slaPolicies.map((policy) => (
               <button key={policy.id} className="admin-row" type="button" onClick={() => editSlaPolicy(policy)}>
                 <span>
-                  <strong>{formatPriority(policy.priority)} / {policy.name}</strong>
+                  <strong>{policy.name || formatPriority(policy.priority)}</strong>
                   <small>
-                    first {policy.firstResponseMinutes}m / resolve {policy.resolutionMinutes}m
+                    First response: {policy.firstResponseMinutes}m · Resolution: {policy.resolutionMinutes}m
                   </small>
                 </span>
                 <em>{policy.isActive ? "Active" : "Off"}</em>
@@ -384,6 +395,16 @@ export function AdminScreen({ token, user }: { token: string; user: UserProfile 
         </section>
       </div>
     </section>
+  );
+}
+
+function SummaryCard({ label, value, detail }: { label: string; value: number; detail: string }) {
+  return (
+    <article className="admin-summary-card">
+      <span>{label}</span>
+      <strong>{value}</strong>
+      <small>{detail}</small>
+    </article>
   );
 }
 
